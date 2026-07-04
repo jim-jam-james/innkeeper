@@ -1,5 +1,24 @@
-from worldbuild_core.entities import mint_uid, parse_entity, serialize_entity, slugify
+import pytest
+
+from worldbuild_core.entities import (
+    EntityError,
+    create_entity,
+    delete_entity,
+    get_entity,
+    mint_uid,
+    rename_entity,
+    slugify,
+    update_entity,
+)
+from worldbuild_core.index import scan_vault
 from worldbuild_core.models import Entity
+from worldbuild_core.vault import (
+    init_vault,
+    load_schema,
+    parse_entity,
+    read_entity,
+    serialize_entity,
+)
 
 
 def test_slugify():
@@ -45,3 +64,223 @@ def test_entity_round_trip():
     assert entity.name == parsed.name
     assert entity.frontmatter == parsed.frontmatter
     assert entity.body == parsed.body
+
+
+def test_get_entity_resolves_relationships(tmp_path):
+    init_vault(tmp_path)
+
+    schema = load_schema(tmp_path)
+
+    create_entity(tmp_path, schema, "Faction", "Faction")
+    create_entity(
+        vault_path=tmp_path,
+        schema=schema,
+        type="Character",
+        name="Character",
+        fields={"member_of": ["[[Faction]]"]},
+    )
+
+    view = get_entity(tmp_path, schema, "Character")
+
+    assert view is not None
+    assert view.entity.name == "Character"
+    assert isinstance(view.relationships["member_of"], list)
+    assert len(view.relationships["member_of"]) == 1
+    assert view.relationships["member_of"][0].name == "Faction"
+
+
+def test_get_entity_missing_returns_none(tmp_path):
+    init_vault(tmp_path)
+
+    schema = load_schema(tmp_path)
+
+    assert get_entity(tmp_path, schema, "Unknown") is None
+
+
+def test_get_entity_backlinks(tmp_path):
+    init_vault(tmp_path)
+
+    schema = load_schema(tmp_path)
+
+    create_entity(tmp_path, schema, "Faction", "Faction")
+    create_entity(
+        vault_path=tmp_path,
+        schema=schema,
+        type="Character",
+        name="Character",
+        fields={"member_of": ["[[Faction]]"]},
+    )
+
+    view = get_entity(tmp_path, schema, "Faction")
+
+    assert len(view.backlinks) == 1
+    assert view.backlinks[0].name == "Character"
+
+
+def test_update_patches_fields_and_appends_body(tmp_path):
+    init_vault(tmp_path)
+    schema = load_schema(tmp_path)
+
+    entity = create_entity(
+        vault_path=tmp_path,
+        schema=schema,
+        type="Character",
+        name="Character",
+        fields={"status": "active"},
+        body="First.",
+    )
+
+    updated = update_entity(
+        vault_path=tmp_path,
+        schema=schema,
+        ref="Character",
+        fields={"status": "dead", "alignment": "LG"},
+        body="Second.",
+        append_body=True,
+    )
+
+    assert entity.frontmatter["status"] == "active" and updated.frontmatter["status"] == "dead"
+    assert updated.frontmatter["alignment"] == "LG"
+    assert "First." in updated.body and "Second." in updated.body
+
+
+def test_update_replaces_body(tmp_path):
+    init_vault(tmp_path)
+    schema = load_schema(tmp_path)
+
+    entity = create_entity(
+        vault_path=tmp_path,
+        schema=schema,
+        type="Character",
+        name="Character",
+        fields={},
+        body="First.",
+    )
+
+    updated = update_entity(
+        vault_path=tmp_path, schema=schema, ref="Character", fields={}, body="Second."
+    )
+
+    assert "First." in entity.body and "Second." in updated.body and "First." not in updated.body
+
+
+def test_update_missing_raises(tmp_path):
+    init_vault(tmp_path)
+    schema = load_schema(tmp_path)
+
+    with pytest.raises(EntityError):
+        update_entity(vault_path=tmp_path, schema=schema, ref="Unfound", fields={}, body="")
+
+
+def test_rename_repairs_link(tmp_path):
+    init_vault(tmp_path)
+    schema = load_schema(tmp_path)
+
+    create_entity(tmp_path, schema, "Faction", "Old")
+    create_entity(tmp_path, schema, "Character", "Member", {"member_of": ["[[Old]]"]})
+
+    rename_entity(tmp_path, schema, "Old", "New")
+
+    member = read_entity(tmp_path / "Characters" / "Member.md")
+    assert member.frontmatter["member_of"] == ["[[New]]"]
+
+
+def test_rename_preserves_display(tmp_path):
+    init_vault(tmp_path)
+    schema = load_schema(tmp_path)
+
+    create_entity(tmp_path, schema, "Faction", "Old")
+    create_entity(tmp_path, schema, "Character", "Member", {"member_of": ["[[Old|Name of Old]]"]})
+
+    rename_entity(tmp_path, schema, "Old", "New")
+
+    member = read_entity(tmp_path / "Characters" / "Member.md")
+    assert member.frontmatter["member_of"] == ["[[New|Name of Old]]"]
+
+
+def test_rename_no_clobber(tmp_path):
+    init_vault(tmp_path)
+    schema = load_schema(tmp_path)
+
+    create_entity(tmp_path, schema, "Character", "Old")
+    create_entity(tmp_path, schema, "Character", "New")
+
+    with pytest.raises(EntityError):
+        rename_entity(tmp_path, schema, "Old", "New")
+
+
+def test_rename_missing_raises(tmp_path):
+    init_vault(tmp_path)
+    schema = load_schema(tmp_path)
+
+    with pytest.raises(EntityError):
+        rename_entity(tmp_path, schema, "Unfound", "New")
+
+
+def test_delete_soft_moves_to_trash(tmp_path):
+    init_vault(tmp_path)
+    schema = load_schema(tmp_path)
+
+    entity = create_entity(tmp_path, schema, "Character", "Name")
+
+    delete_entity(tmp_path, schema, "Name")
+
+    assert (tmp_path / "Characters" / f"{entity.name}.md").exists() is False
+    assert (tmp_path / "_trash" / f"{entity.uid}.md").exists()
+    assert scan_vault(tmp_path).resolve("Name") is None
+
+
+def test_delete_missing_raises(tmp_path):
+    init_vault(tmp_path)
+    schema = load_schema(tmp_path)
+
+    with pytest.raises(EntityError):
+        delete_entity(tmp_path, schema, "Unfound")
+
+
+def test_purge_strips_typed_reference(tmp_path):
+    init_vault(tmp_path)
+    schema = load_schema(tmp_path)
+
+    entity = create_entity(tmp_path, schema, "Faction", "Old")
+    create_entity(tmp_path, schema, "Character", "Member", {"member_of": ["[[Old]]"]})
+
+    touched = delete_entity(tmp_path, schema, "Old", purge=True)
+
+    assert (tmp_path / "Factions" / f"{entity.name}.md").exists() is False
+
+    member = read_entity(tmp_path / "Characters" / "Member.md")
+
+    assert "member_of" not in member.frontmatter
+    assert (tmp_path / "Characters" / "Member.md") in touched
+
+
+def test_purge_removes_one_of_many(tmp_path):
+    init_vault(tmp_path)
+    schema = load_schema(tmp_path)
+
+    create_entity(tmp_path, schema, "Faction", "Old")
+    create_entity(tmp_path, schema, "Faction", "Keep")
+    create_entity(tmp_path, schema, "Character", "Member", {"member_of": ["[[Old]]", "[[Keep]]"]})
+
+    touched = delete_entity(tmp_path, schema, "Old", purge=True)
+
+    member = read_entity(tmp_path / "Characters" / "Member.md")
+
+    assert "member_of" in member.frontmatter
+    assert member.frontmatter["member_of"] == ["[[Keep]]"]
+    assert (tmp_path / "Characters" / "Member.md") in touched
+
+
+def test_purge_leaves_body_dangling(tmp_path):
+    init_vault(tmp_path)
+    schema = load_schema(tmp_path)
+
+    create_entity(tmp_path, schema, "Faction", "Old")
+    create_entity(tmp_path, schema, "Character", "Member", {}, "Member of [[Old]].")
+
+    delete_entity(tmp_path, schema, "Old", purge=True)
+
+    member = read_entity(tmp_path / "Characters" / "Member.md")
+
+    assert "[[Old]]" in member.body

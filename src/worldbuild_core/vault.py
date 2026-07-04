@@ -1,11 +1,11 @@
 from importlib.resources import files
 from pathlib import Path
+from typing import Any
 
 import yaml
 
-from worldbuild_core.entities import parse_entity, serialize_entity
 from worldbuild_core.models import Entity
-from worldbuild_core.schema import build_schema
+from worldbuild_core.schema import Schema, build_schema
 
 
 def default_schema_text() -> str:
@@ -28,6 +28,20 @@ def init_vault(path: Path) -> None:
         (path / type_spec.folder).mkdir(parents=True, exist_ok=True)
 
 
+def serialize_entity(entity: Entity) -> str:
+    fm = {"type": entity.type, "uid": entity.uid, **entity.frontmatter}
+    fm_text = yaml.safe_dump(fm, sort_keys=False, allow_unicode=True)
+    return f"---\n{fm_text}---\n\n{entity.body}".rstrip() + "\n"
+
+
+def parse_entity(text: str, name: str) -> Entity:
+    _, fm_text, body = text.split("---", 2)
+    fm: dict[str, Any] = yaml.safe_load(fm_text) or {}
+    type_ = fm.pop("type")
+    uid = fm.pop("uid")
+    return Entity(uid=uid, type=type_, name=name, frontmatter=fm, body=body.strip("\n"))
+
+
 def read_entity(path: Path) -> Entity:
     text = path.read_text(encoding="utf-8")
     return parse_entity(text, name=path.stem)
@@ -38,3 +52,8 @@ def write_entity(path: Path, entity: Entity) -> None:
     tmp = path.with_suffix(path.suffix + ".tmp")
     tmp.write_text(text, encoding="utf-8")
     tmp.replace(path)
+
+
+def load_schema(vault_path: Path) -> Schema:
+    text = (vault_path / ".worldbuild" / "schema.yaml").read_text(encoding="utf-8")
+    return build_schema(yaml.safe_load(text))

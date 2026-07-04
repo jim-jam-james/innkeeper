@@ -9,3 +9,10 @@ class Entity:
     name: str
     frontmatter: dict[str, Any] = field(default_factory=dict)
     body: str = ""
+
+
+@dataclass
+class EntityView:
+    entity: Entity
+    relationships: dict[str, list[Entity]]
+    backlinks: list[Entity] = field(default_factory=list)

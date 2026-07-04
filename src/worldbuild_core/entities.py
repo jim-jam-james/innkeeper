@@ -1,10 +1,16 @@
 import re
 import secrets
+from pathlib import Path
 from typing import Any
 
-import yaml
+from worldbuild_core.index import VaultIndex, scan_vault
+from worldbuild_core.models import Entity, EntityView
+from worldbuild_core.schema import Schema
+from worldbuild_core.vault import write_entity
 
-from worldbuild_core.models import Entity
+
+class EntityError(Exception):
+    pass
 
 
 def slugify(text: str) -> str:
@@ -15,15 +21,208 @@ def mint_uid(type_name: str, name: str) -> str:
     return f"{type_name.lower()}_{slugify(name)}_{secrets.token_hex(2)}"
 
 
-def serialize_entity(entity: Entity) -> str:
-    fm = {"type": entity.type, "uid": entity.uid, **entity.frontmatter}
-    fm_text = yaml.safe_dump(fm, sort_keys=False, allow_unicode=True)
-    return f"---\n{fm_text}---\n\n{entity.body}".rstrip() + "\n"
+def create_entity(
+    vault_path: Path,
+    schema: Schema,
+    type: str,
+    name: str,
+    fields: dict[str, Any] | None = None,
+    body: str = "",
+) -> Entity:
+    type_spec = schema.get_type(type)
+
+    if type_spec is None:
+        raise EntityError(f"You can't create an entity of type {type}: Undefined")
+
+    note_path = vault_path / type_spec.folder / f"{name}.md"
+
+    if note_path.exists():
+        raise EntityError("Entity already exists. Cannot overwrite.")
+
+    uid = mint_uid(type, name)
+    entity = Entity(uid=uid, type=type, name=name, frontmatter=dict(fields or {}), body=body)
+
+    note_path.parent.mkdir(parents=True, exist_ok=True)
+    write_entity(note_path, entity)
+
+    return entity
 
 
-def parse_entity(text: str, name: str) -> Entity:
-    _, fm_text, body = text.split("---", 2)
-    fm: dict[str, Any] = yaml.safe_load(fm_text) or {}
-    type_ = fm.pop("type")
-    uid = fm.pop("uid")
-    return Entity(uid=uid, type=type_, name=name, frontmatter=fm, body=body.strip("\n"))
+def parse_wikilinks(value: Any) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        value = [value]
+    titles: list[str] = []
+    for item in value:
+        titles.extend(re.findall(r"\[\[([^\]|]+)", item))
+    return titles
+
+
+def get_entity(vault_path: Path, schema: Schema, ref: str) -> EntityView | None:
+    index = scan_vault(vault_path)
+    entity = index.resolve(ref)
+
+    if entity is None:
+        return None
+
+    type_spec = schema.get_type(entity.type)
+    if type_spec is None:
+        return None
+
+    relationships: dict[str, list[Entity]] = {}
+    for rel_name in type_spec.relationships:
+        value = entity.frontmatter.get(rel_name)
+        titles = parse_wikilinks(value)
+        linked = [index.resolve(t) for t in titles]
+        relationships[rel_name] = [e for e in linked if e is not None]
+
+    backlinks = [
+        other
+        for other in index.entities.values()
+        if other.uid != entity.uid and _links_to(index, schema, other, entity.uid)
+    ]
+    return EntityView(entity=entity, relationships=relationships, backlinks=backlinks)
+
+
+def _links_to(index: VaultIndex, schema: Schema, source: Entity, target_uid: str) -> bool:
+    spec = schema.get_type(source.type)
+    if spec is None:
+        return False
+    for rel_name in spec.relationships:
+        for title in parse_wikilinks(source.frontmatter.get(rel_name)):
+            linked = index.resolve(title)
+            if linked is not None and linked.uid == target_uid:
+                return True
+    return False
+
+
+def update_entity(
+    vault_path: Path,
+    schema: Schema,
+    ref: str,
+    fields: dict[str, Any] | None = None,
+    body: str | None = None,
+    append_body: bool = False,
+) -> Entity:
+    index = scan_vault(vault_path)
+    entity = index.resolve(ref)
+
+    if entity is None:
+        raise EntityError("Entity not found.")
+
+    note_path = index.path_by_uid[entity.uid]
+
+    if fields:
+        entity.frontmatter.update(fields)
+
+    if body is not None:
+        if append_body:
+            entity.body = f"{entity.body}\n\n{body}".strip("\n")
+        else:
+            entity.body = body.strip("\n")
+
+    write_entity(note_path, entity)
+
+    return entity
+
+
+def rename_entity(vault_path: Path, schema: Schema, ref: str, new_name: str) -> Entity:
+    def repl(m: re.Match[str]) -> str:
+        return f"[[{new_name}{m.group(1) or ''}]]"
+
+    index = scan_vault(vault_path)
+
+    entity = index.resolve(ref)
+
+    if entity is None:
+        raise EntityError(f"Entity {ref} not found.")
+
+    old_name = entity.name
+    old_path = index.path_by_uid[entity.uid]
+
+    new_path = old_path.with_name(f"{new_name}.md")
+
+    if new_path.exists():
+        raise EntityError(f"Path already exists: {new_path}")
+
+    pattern = re.compile(r"\[\[" + re.escape(old_name) + r"(\|[^\]]*)?\]\]")
+
+    for other in index.entities.values():
+        new_fm = {k: _rewrite_links(v, pattern, new_name) for k, v in other.frontmatter.items()}
+        new_body = pattern.sub(repl, other.body)
+
+        if new_fm != other.frontmatter or new_body != other.body:
+            other.frontmatter = new_fm
+            other.body = new_body
+            write_entity(index.path_by_uid[other.uid], other)
+
+    old_path.rename(new_path)
+    entity.name = new_name
+
+    return entity
+
+
+def _rewrite_links(value: Any, pattern: re.Pattern[str], new_name: str) -> Any:
+    def repl(m: re.Match[str]) -> str:
+        return f"[[{new_name}{m.group(1) or ''}]]"
+
+    if isinstance(value, str):
+        return pattern.sub(repl, value)
+    if isinstance(value, list):
+        return [pattern.sub(repl, v) if isinstance(v, str) else v for v in value]
+    return value
+
+
+def delete_entity(vault_path: Path, schema: Schema, ref: str, purge: bool = False) -> list[Path]:
+    index = scan_vault(vault_path)
+
+    entity = index.resolve(ref)
+
+    if entity is None:
+        raise EntityError(f"Entity {ref} not found.")
+
+    note_path = index.path_by_uid[entity.uid]
+
+    if not purge:
+        trash = vault_path / "_trash"
+        trash.mkdir(parents=True, exist_ok=True)
+
+        note_path.rename(trash / f"{entity.uid}.md")
+
+        return []
+    else:
+        touched: list[Path] = []
+        pattern = re.compile(r"\[\[" + re.escape(entity.name) + r"(\|[^\]]*)?\]\]")
+
+        for other in index.entities.values():
+            if other.uid == entity.uid:
+                continue
+            spec = schema.get_type(other.type)
+            if spec is None:
+                continue
+
+            changed = False
+            for rel_name in spec.relationships:
+                value = other.frontmatter.get(rel_name)
+                if value is None:
+                    continue
+                if isinstance(value, str):
+                    if pattern.search(value):
+                        del other.frontmatter[rel_name]
+                        changed = True
+                if isinstance(value, list):
+                    kept = [sub_value for sub_value in value if not pattern.search(sub_value)]
+                    if len(kept) < len(value):
+                        if kept:
+                            other.frontmatter[rel_name] = kept
+                        else:
+                            del other.frontmatter[rel_name]
+                        changed = True
+            if changed:
+                path = index.path_by_uid[other.uid]
+                write_entity(path, other)
+                touched.append(path)
+
+        note_path.unlink()
+        return touched
