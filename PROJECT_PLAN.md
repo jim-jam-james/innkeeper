@@ -184,36 +184,36 @@ Each phase ends at a real, testable milestone. Write tests *as you go*, not afte
 - [x] First green CI run on an empty test. **Done when:** CI badge is green.
 
 ### Phase 1 — Schema & vault bootstrap (core)
-- [ ] Define the `schema.yaml` format (types, folders, required/optional fields, relationship specs with `target`/`cardinality`/`inverse`).
-- [ ] `schema.py`: load + **validate the schema itself** (catch malformed ontologies early).
-- [ ] `vault.py`: `init_vault(path)` writes the default core-6 schema into `.worldbuild/schema.yaml` and creates the folder skeleton.
-- [ ] Tests: schema loads, defaults are written, a malformed schema is rejected.
-- [ ] **Done when:** `init_vault(tmp)` produces a valid, self-describing vault.
+- [x] Define the `schema.yaml` format (types, folders, required/optional fields, relationship specs with `target`/`cardinality`/`inverse`).
+- [x] `schema.py`: load + **validate the schema itself** (catch malformed ontologies early).
+- [x] `vault.py`: `init_vault(path)` writes the default core-6 schema into `.worldbuild/schema.yaml` and creates the folder skeleton.
+- [x] Tests: schema loads, defaults are written, a malformed schema is rejected.
+- [x] **Done when:** `init_vault(tmp)` produces a valid, self-describing vault.
 
 ### Phase 2 — Entity model, identity, index (core)
-- [ ] `models.py`: `Entity` (frontmatter + body), the `Result` envelope, `ValidationReport`.
-- [ ] Readable `uid` minting (e.g. `char_aldric_a1b2`).
-- [ ] Markdown read/write: frontmatter parse/serialize, **atomic write-then-rename**.
-- [ ] `index.py`: `VaultIndex` (scan-on-demand) builds `path ↔ uid ↔ aliases`; excludes `.worldbuild/` and `_trash/`.
-- [ ] Link resolver: resolve a `ref` by uid, title, or alias; report unresolved.
-- [ ] Tests with temp vaults: round-trip a note, resolve by all three ref kinds, detect a broken link.
-- [ ] **Done when:** you can scan a vault and resolve links reliably after a rename.
+- [x] `models.py`: `Entity` (frontmatter + body), the `Result` envelope, `ValidationReport`.
+- [x] Readable `uid` minting (e.g. `char_aldric_a1b2`).
+- [x] Markdown read/write: frontmatter parse/serialize, **atomic write-then-rename**.
+- [x] `index.py`: `VaultIndex` (scan-on-demand) builds `path ↔ uid ↔ aliases`; excludes `.worldbuild/` and `_trash/`.
+- [x] Link resolver: resolve a `ref` by uid, title, or alias; report unresolved.
+- [x] Tests with temp vaults: round-trip a note, resolve by all three ref kinds, detect a broken link.
+- [x] **Done when:** you can scan a vault and resolve links reliably after a rename.
 
 ### Phase 3 — CRUD (core)
-- [ ] `create_entity` (folder placement, uid, template/frontmatter from schema).
-- [ ] `get_entity` (frontmatter + body + **resolved one-hop links** + backlinks).
-- [ ] `update_entity` (patch frontmatter / append or replace body).
-- [ ] `rename_entity` (retitle + repair inbound wikilinks).
-- [ ] `delete_entity` (soft → `_trash/`) and the `purge=true` path (strip typed inverses, touched-notes report, leave prose dangling).
-- [ ] Tests for each, including soft-delete reversibility and the purge report.
-- [ ] **Done when:** full lifecycle of an entity works end-to-end on files.
+- [x] `create_entity` (folder placement, uid, template/frontmatter from schema).
+- [x] `get_entity` (frontmatter + body + **resolved one-hop links** + backlinks).
+- [x] `update_entity` (patch frontmatter / append or replace body).
+- [x] `rename_entity` (retitle + repair inbound wikilinks).
+- [x] `delete_entity` (soft → `_trash/`) and the `purge=true` path (strip typed inverses, touched-notes report, leave prose dangling).
+- [x] Tests for each, including soft-delete reversibility and the purge report.
+- [x] **Done when:** full lifecycle of an entity works end-to-end on files.
 
 ### Phase 4 — Relationships (core)
-- [ ] `link` (validate types/cardinality vs schema; **auto-write inverse**; **auto-stub** nonexistent target).
-- [ ] `unlink` (+ inverse removal with report).
-- [ ] Enforce the two-tier model: typed links are managed; prose `[[mentions]]` are left untouched.
-- [ ] Tests: inverse appears on the target, cardinality is enforced, a forward-reference creates a `status: stub`.
-- [ ] **Done when:** the typed-relationship graph is self-consistent by construction.
+- [x] `link` (validate types/cardinality vs schema; **auto-write inverse**; **auto-stub** nonexistent target).
+- [x] `unlink` (+ inverse removal with report).
+- [x] Enforce the two-tier model: typed links are managed; prose `[[mentions]]` are left untouched.
+- [x] Tests: inverse appears on the target, cardinality is enforced, a forward-reference creates a `status: stub`.
+- [x] **Done when:** the typed-relationship graph is self-consistent by construction.
 
 ### Phase 5 — Validate & query (core)  ← core feature-complete
 - [ ] `validate` engine: ERROR (illegal relationship type, busted cardinality, link resolving to nothing), WARN (missing required field, stubs, missing inverse, ref to trashed entity), INFO (orphans, recurring promotable mentions). Severity-grouped report with refs + suggested fixes; `scope` = vault\|type\|entity.

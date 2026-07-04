@@ -226,3 +226,116 @@ def delete_entity(vault_path: Path, schema: Schema, ref: str, purge: bool = Fals
 
         note_path.unlink()
         return touched
+
+
+def _add_link(entity: Entity, slot: str, target_title: str, cardinality: str) -> None:
+    token = f"[[{target_title}]]"
+    if cardinality == "one":
+        entity.frontmatter[slot] = token
+    else:
+        existing = entity.frontmatter.get(slot)
+        items = existing if isinstance(existing, list) else ([existing] if existing else [])
+        if token not in items:
+            items.append(token)
+        entity.frontmatter[slot] = items
+
+
+def link(vault_path: Path, schema: Schema, source_ref: str, rel_name: str, target_ref: str) -> None:
+    index = scan_vault(vault_path)
+
+    source = index.resolve(source_ref)
+
+    if source is None:
+        raise EntityError(f"Source '{source_ref}' not found")
+
+    source_spec = schema.get_type(source.type)
+    if source_spec is None:
+        raise EntityError(f"'{source.type}' isn't known for '{source_ref}'")
+
+    rel = source_spec.relationships.get(rel_name)
+
+    if rel is None:
+        raise EntityError(f"'{source_ref}' has no relationship '{rel_name}'")
+
+    target = index.resolve(target_ref)
+
+    if target is None:
+        create_entity(vault_path, schema, rel.target, target_ref, {"status": "stub"})
+        index = scan_vault(vault_path)
+        source = index.resolve(source_ref)
+        target = index.resolve(target_ref)
+
+    if source is None or target is None:
+        raise EntityError(f"Could not resolve after stubbing '{target_ref}'")
+
+    if target.type != rel.target:
+        raise EntityError(f"'{rel_name}' not associated with target type '{target.type}'")
+
+    _add_link(source, rel_name, target.name, rel.cardinality)
+
+    target_spec = schema.get_type(target.type)
+    if target_spec is None:
+        raise EntityError(f"'{target.type}' isn't known for '{target_ref}'")
+
+    inv = target_spec.relationships[rel.inverse]
+    _add_link(target, rel.inverse, source.name, inv.cardinality)
+
+    write_entity(index.path_by_uid[source.uid], source)
+    write_entity(index.path_by_uid[target.uid], target)
+
+
+def _remove_link(entity: Entity, slot: str, target_title: str) -> bool:
+    token = f"[[{target_title}]]"
+    value = entity.frontmatter.get(slot)
+    if value is None:
+        return False
+    if isinstance(value, list):
+        kept = [v for v in value if v != token]
+        if len(kept) == len(value):
+            return False
+        if kept:
+            entity.frontmatter[slot] = kept
+        else:
+            del entity.frontmatter[slot]
+        return True
+    if value == token:
+        del entity.frontmatter[slot]
+        return True
+    return False
+
+
+def unlink(
+    vault_path: Path, schema: Schema, source_ref: str, rel_name: str, target_ref: str
+) -> list[Path]:
+    index = scan_vault(vault_path)
+
+    source = index.resolve(source_ref)
+
+    if source is None:
+        raise EntityError(f"Source '{source_ref}' not found")
+
+    source_spec = schema.get_type(source.type)
+    if source_spec is None:
+        raise EntityError(f"'{source.type}' isn't known for '{source_ref}'")
+
+    rel = source_spec.relationships.get(rel_name)
+
+    if rel is None:
+        raise EntityError(f"'{source_ref}' has no relationship '{rel_name}'")
+
+    target = index.resolve(target_ref)
+
+    if target is None:
+        raise EntityError(f"Target '{target_ref}' not found")
+
+    touched: list[Path] = []
+
+    if _remove_link(source, rel_name, target.name):
+        write_entity(index.path_by_uid[source.uid], source)
+        touched.append(index.path_by_uid[source.uid])
+
+    if _remove_link(target, rel.inverse, source.name):
+        write_entity(index.path_by_uid[target.uid], target)
+        touched.append(index.path_by_uid[target.uid])
+
+    return touched

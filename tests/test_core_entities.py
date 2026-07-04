@@ -5,9 +5,11 @@ from worldbuild_core.entities import (
     create_entity,
     delete_entity,
     get_entity,
+    link,
     mint_uid,
     rename_entity,
     slugify,
+    unlink,
     update_entity,
 )
 from worldbuild_core.index import scan_vault
@@ -284,3 +286,127 @@ def test_purge_leaves_body_dangling(tmp_path):
     member = read_entity(tmp_path / "Characters" / "Member.md")
 
     assert "[[Old]]" in member.body
+
+
+def test_link_writes_both_sides(tmp_path):
+    init_vault(tmp_path)
+    schema = load_schema(tmp_path)
+
+    create_entity(tmp_path, schema, "Faction", "Faction")
+    create_entity(tmp_path, schema, "Character", "Character")
+
+    link(tmp_path, schema, "Character", "member_of", "Faction")
+
+    character = read_entity(tmp_path / "Characters" / "Character.md")
+    faction = read_entity(tmp_path / "Factions" / "Faction.md")
+
+    assert character.frontmatter["member_of"] == ["[[Faction]]"]
+    assert faction.frontmatter["members"] == ["[[Character]]"]
+
+
+def test_link_is_idempotent(tmp_path):
+    init_vault(tmp_path)
+    schema = load_schema(tmp_path)
+
+    create_entity(tmp_path, schema, "Faction", "Faction")
+    create_entity(tmp_path, schema, "Character", "Character")
+
+    link(tmp_path, schema, "Character", "member_of", "Faction")
+    link(tmp_path, schema, "Character", "member_of", "Faction")
+
+    character = read_entity(tmp_path / "Characters" / "Character.md")
+    faction = read_entity(tmp_path / "Factions" / "Faction.md")
+
+    assert character.frontmatter["member_of"] == ["[[Faction]]"]
+    assert faction.frontmatter["members"] == ["[[Character]]"]
+
+
+def test_link_unknown_relationship_raises(tmp_path):
+    init_vault(tmp_path)
+    schema = load_schema(tmp_path)
+
+    create_entity(tmp_path, schema, "Faction", "Faction")
+    create_entity(tmp_path, schema, "Character", "Character")
+
+    with pytest.raises(EntityError):
+        link(tmp_path, schema, "Character", "leader_of", "Faction")
+
+
+def test_link_wrong_target_type_raises(tmp_path):
+    init_vault(tmp_path)
+    schema = load_schema(tmp_path)
+
+    create_entity(tmp_path, schema, "Event", "Event")
+    create_entity(tmp_path, schema, "Character", "Character")
+
+    with pytest.raises(EntityError):
+        link(tmp_path, schema, "Character", "member_of", "Event")
+
+
+def test_link_auto_stubs_missing_target(tmp_path):
+    init_vault(tmp_path)
+    schema = load_schema(tmp_path)
+
+    create_entity(tmp_path, schema, "Character", "Character")
+
+    link(tmp_path, schema, "Character", "member_of", "Faction")
+
+    assert (tmp_path / "Factions" / "Faction.md").exists()
+
+    faction = read_entity(tmp_path / "Factions" / "Faction.md")
+
+    assert faction.frontmatter["status"] == "stub"
+    assert faction.type == "Faction"
+
+    character = read_entity(tmp_path / "Characters" / "Character.md")
+
+    assert character.frontmatter["member_of"] == ["[[Faction]]"]
+    assert faction.frontmatter["members"] == ["[[Character]]"]
+
+
+def test_unlink_removes_both_sides(tmp_path):
+    init_vault(tmp_path)
+    schema = load_schema(tmp_path)
+
+    create_entity(tmp_path, schema, "Faction", "Faction")
+    create_entity(tmp_path, schema, "Character", "Character")
+
+    link(tmp_path, schema, "Character", "member_of", "Faction")
+    report = unlink(tmp_path, schema, "Character", "member_of", "Faction")
+
+    character = read_entity(tmp_path / "Characters" / "Character.md")
+    faction = read_entity(tmp_path / "Factions" / "Faction.md")
+
+    assert "members_of" not in character.frontmatter
+    assert "members" not in faction.frontmatter
+
+    assert (tmp_path / "Characters" / "Character.md") in report
+    assert (tmp_path / "Factions" / "Faction.md") in report
+
+
+def test_unlink_leaves_other_links(tmp_path):
+    init_vault(tmp_path)
+    schema = load_schema(tmp_path)
+
+    create_entity(tmp_path, schema, "Faction", "A")
+    create_entity(tmp_path, schema, "Faction", "B")
+    create_entity(tmp_path, schema, "Character", "Character")
+
+    link(tmp_path, schema, "Character", "member_of", "A")
+    link(tmp_path, schema, "Character", "member_of", "B")
+
+    unlink(tmp_path, schema, "Character", "member_of", "B")
+
+    character = read_entity(tmp_path / "Characters" / "Character.md")
+    assert character.frontmatter["member_of"] == ["[[A]]"]
+
+
+def test_unlink_unknown_relationship_raises(tmp_path):
+    init_vault(tmp_path)
+    schema = load_schema(tmp_path)
+
+    create_entity(tmp_path, schema, "Faction", "Faction")
+    create_entity(tmp_path, schema, "Character", "Character")
+
+    with pytest.raises(EntityError):
+        link(tmp_path, schema, "Character", "leader_of", "Faction")
