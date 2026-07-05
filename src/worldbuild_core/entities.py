@@ -339,3 +339,41 @@ def unlink(
         touched.append(index.path_by_uid[target.uid])
 
     return touched
+
+
+def query_entities(
+    vault_path: Path,
+    type: str | None = None,
+    fields: dict[str, Any] | None = None,
+    tag: str | None = None,
+) -> list[Entity]:
+    index = scan_vault(vault_path)
+
+    keep = []
+    for entity in index.entities.values():
+        if type is not None and entity.type != type:
+            continue
+        if fields is not None and not all(
+            entity.frontmatter.get(k) == v for k, v in fields.items()
+        ):
+            continue
+        if tag is not None:
+            tags = entity.frontmatter.get("tags") or []
+
+            if isinstance(tags, str):
+                tags = [tags]
+            if tag not in tags:
+                continue
+        keep.append(entity)
+
+    return sorted(keep, key=lambda e: e.name)
+
+
+def search(vault_path: Path, query: str) -> list[Entity]:
+    index = scan_vault(vault_path)
+
+    q = query.lower()
+
+    keep = [e for e in index.entities.values() if q in e.name.lower() or q in e.body.lower()]
+
+    return sorted(keep, key=lambda e: e.name)

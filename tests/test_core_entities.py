@@ -7,7 +7,9 @@ from worldbuild_core.entities import (
     get_entity,
     link,
     mint_uid,
+    query_entities,
     rename_entity,
+    search,
     slugify,
     unlink,
     update_entity,
@@ -410,3 +412,64 @@ def test_unlink_unknown_relationship_raises(tmp_path):
 
     with pytest.raises(EntityError):
         link(tmp_path, schema, "Character", "leader_of", "Faction")
+
+
+def test_query_by_type(tmp_path):
+    init_vault(tmp_path)
+    schema = load_schema(tmp_path)
+
+    create_entity(tmp_path, schema, "Character", "Character1")
+    create_entity(tmp_path, schema, "Character", "Character2")
+    create_entity(tmp_path, schema, "Faction", "Faction")
+
+    assert len(query_entities(tmp_path, "Character")) == 2
+
+
+def test_query_by_field(tmp_path):
+    init_vault(tmp_path)
+    schema = load_schema(tmp_path)
+
+    create_entity(tmp_path, schema, "Character", "Character1", {"status": "active"})
+    create_entity(tmp_path, schema, "Character", "Character2", {"status": "dead"})
+
+    assert len(query_entities(tmp_path, None, {"status": "active"})) == 1
+
+
+def test_query_by_tag(tmp_path):
+    init_vault(tmp_path)
+    schema = load_schema(tmp_path)
+
+    create_entity(tmp_path, schema, "Character", "Character1", {"tags": ["villain"]})
+    create_entity(tmp_path, schema, "Character", "Character2")
+
+    assert len(query_entities(tmp_path, None, None, "villain")) == 1
+
+
+def test_query_no_filter_returns_all(tmp_path):
+    init_vault(tmp_path)
+    schema = load_schema(tmp_path)
+
+    create_entity(tmp_path, schema, "Character", "Character1")
+    create_entity(tmp_path, schema, "Character", "Character2")
+
+    assert len(query_entities(tmp_path)) == 2
+
+
+def test_search_matches_body_case_insensitive(tmp_path):
+    init_vault(tmp_path)
+    schema = load_schema(tmp_path)
+
+    create_entity(tmp_path, schema, "Character", "Character1", {}, "Puff the Magic Dragon.")
+    create_entity(tmp_path, schema, "Character", "Character2")
+
+    assert len(search(tmp_path, "dragon")) == 1
+
+
+def test_Search_no_match_returns_empty(tmp_path):
+    init_vault(tmp_path)
+    schema = load_schema(tmp_path)
+
+    create_entity(tmp_path, schema, "Character", "Character1")
+    create_entity(tmp_path, schema, "Character", "Character2")
+
+    assert len(search(tmp_path, "dragon")) == 0

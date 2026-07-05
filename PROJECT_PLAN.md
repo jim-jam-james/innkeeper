@@ -216,11 +216,11 @@ Each phase ends at a real, testable milestone. Write tests *as you go*, not afte
 - [x] **Done when:** the typed-relationship graph is self-consistent by construction.
 
 ### Phase 5 — Validate & query (core)  ← core feature-complete
-- [ ] `validate` engine: ERROR (illegal relationship type, busted cardinality, link resolving to nothing), WARN (missing required field, stubs, missing inverse, ref to trashed entity), INFO (orphans, recurring promotable mentions). Severity-grouped report with refs + suggested fixes; `scope` = vault\|type\|entity.
-- [ ] `validate(fix=true)`: rebuild missing inverses; repoint a stale wikilink when exactly one target matches. Never guess semantics.
-- [ ] `query_entities` (type/field/tag filters); `search` (full-text).
-- [ ] Tests covering each severity and each mechanical fix.
-- [ ] **Done when:** `worldbuild_core` can build, query, and self-heal a whole world with **no MCP at all**. *(Tag a `v0.1-core` git tag here.)*
+- [x] `validate` engine: ERROR (illegal relationship type, busted cardinality, link resolving to nothing), WARN (missing required field, stubs, missing inverse, ref to trashed entity), INFO (orphans, recurring promotable mentions). Severity-grouped report with refs + suggested fixes; `scope` = vault\|type\|entity.
+- [x] `validate(fix=true)`: rebuild missing inverses; repoint a stale wikilink when exactly one target matches. Never guess semantics.
+- [x] `query_entities` (type/field/tag filters); `search` (full-text).
+- [x] Tests covering each severity and each mechanical fix.
+- [x] **Done when:** `worldbuild_core` can build, query, and self-heal a whole world with **no MCP at all**. *(Tag a `v0.1-core` git tag here.)*
 
 ### Phase 6 — MCP adapter (learn this layer now, in isolation)
 - [ ] `server.py`: create the FastMCP server; read vault path from `OBSIDIAN_VAULT_PATH` / `--vault`.
