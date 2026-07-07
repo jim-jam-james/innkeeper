@@ -159,6 +159,97 @@ def world_summary() -> dict[str, Any]:
     return {"total": len(index.entities), "by_type": by_type}
 
 
+@mcp.prompt
+def flesh_out_entity(ref: str) -> str:
+    """Expand a stub or thin entity into rich detail, respecting the schema."""
+    vault = _vault()
+    schema = load_schema(vault)
+    view = entities.get_entity(vault, schema, ref)
+
+    if view is None:
+        return f"No entity named '{ref}' exists yet. Create it first then try again."
+
+    entity = view.entity
+    type_spec = schema.get_type(entity.type)
+    rels = ", ".join(type_spec.relationships) if type_spec else ""
+
+    return (
+        f"Flesh out the {entity.type} '{entity.name}' in my worldbuilding vault.\n\n"
+        f"Current frontmatter: {entity.frontmatter}\n"
+        f"Current body: {entity.body or '(empty)'}\n\n"
+        f"Available typed relationships for a {entity.type}: {rels}\n\n"
+        "Write an evocative body associated with the entity type, and use the worldbuild "
+        "tools to add fitting frontmatter fields and typed relationships. Only use "
+        "relationships from the list above and respect the existing schema and world."
+    )
+
+
+@mcp.prompt
+def brainstorm(type: str) -> str:
+    """Brainstorm new entities of a given type that fill gaps in the existing world."""
+    vault = _vault()
+    schema = load_schema(vault)
+
+    type_spec = schema.get_type(type)
+
+    if type_spec is None:
+        return f"Entity type '{type}' doesn't exist. Create it or change entity type."
+
+    return (
+        f"{type} schema:\n{type_spec.__dict__}\n\n"
+        f"Based on the entity type counts:\n{world_summary()}\n\n"
+        f"Brainstorm new {type} entities to fill in any gaps of that type found within the "
+        "user's world."
+    )
+
+
+@mcp.prompt
+def suggest_connections(ref: str) -> str:
+    """Propose new typed relationships from an entity to others in the world."""
+    vault = _vault()
+    schema = load_schema(vault)
+
+    view = entities.get_entity(vault, schema, ref)
+
+    if view is None:
+        return f"No entity named '{ref}' exists yet. Create it first then try again."
+
+    entity = view.entity
+    type_spec = schema.get_type(entity.type)
+    rels = ", ".join(type_spec.relationships) if type_spec else ""
+    all_entities = {e.name: e.type for e in entities.query_entities(vault) if e.uid != entity.uid}
+
+    return (
+        f"Entity Information:\n{entity}\n\n"
+        f"Entity Relationship Types: {rels}\n\n"
+        f"Other Entities:\n{all_entities}\n\n"
+        "Given the supplied entity, propose *new* relationships to other"
+        " entities, where a relationship is not already formed."
+    )
+
+
+@mcp.prompt
+def consistency_review(scope: str | None = None) -> str:
+    """Review the world's validation issues and suggest narrative fixes."""
+    vault = _vault()
+    schema = load_schema(vault)
+
+    issues = validate_core.validate(vault, schema, fix=False, scope=scope)
+
+    if len(issues) == 0:
+        return "No issues found."
+
+    issue_dicts = [issue.__dict__ for issue in issues]
+
+    return (
+        f"List of Issues:\n{issue_dicts}\n\n"
+        "Given the list of issues in the world, provide narrative"
+        " fixes that go beyond the basic suggestion. For each issue, "
+        "respond sequentially, each issue being addresed seperately unless"
+        " directly tied together."
+    )
+
+
 def main() -> None:
     mcp.run()
 

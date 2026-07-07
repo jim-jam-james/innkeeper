@@ -231,8 +231,8 @@ Each phase ends at a real, testable milestone. Write tests *as you go*, not afte
 - [ ] **Done when:** an agent in the host can create linked entities and run `validate`.
 
 ### Phase 7 — Prompts
-- [ ] `flesh_out_entity`, `suggest_connections`, `consistency_review`, `brainstorm` as `@mcp.prompt`, each embedding `schema` + relevant world context.
-- [ ] **Done when:** the host can do graph-aware generation that respects existing structure.
+- [x] `flesh_out_entity`, `suggest_connections`, `consistency_review`, `brainstorm` as `@mcp.prompt`, each embedding `schema` + relevant world context.
+- [x] **Done when:** the host can do graph-aware generation that respects existing structure.
 
 ### Phase 8 — Packaging, docs, polish  ← ship
 - [ ] Build & publish to PyPI; verify `uvx worldbuild-mcp --vault /path`.

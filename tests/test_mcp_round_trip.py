@@ -132,3 +132,75 @@ def test_query_tool_filters_by_type(tmp_path, monkeypatch):
     result = asyncio.run(scenario())
     names = {e["name"] for e in result.data["entities"]}
     assert names == {"A"}
+
+
+def test_flesh_out_entity_prompt(tmp_path, monkeypatch):
+    monkeypatch.setenv("OBSIDIAN_VAULT_PATH", str(tmp_path))
+    init_vault(tmp_path)
+    schema = load_schema(tmp_path)
+
+    create_entity(tmp_path, schema, "Character", "Aldric", {"status": "stub"})
+
+    async def scenario():
+        async with Client(mcp) as client:
+            return await client.get_prompt("flesh_out_entity", {"ref": "Aldric"})
+
+    result = asyncio.run(scenario())
+    text = result.messages[0].content.text
+    assert "Aldric" in text
+    assert "member_of" in text
+
+
+def test_brainstorm_prompt(tmp_path, monkeypatch):
+    monkeypatch.setenv("OBSIDIAN_VAULT_PATH", str(tmp_path))
+    init_vault(tmp_path)
+    schema = load_schema(tmp_path)
+
+    create_entity(tmp_path, schema, "Faction", "Nightwatch")
+    create_entity(tmp_path, schema, "Faction", "The Guard")
+    create_entity(tmp_path, schema, "Faction", "Red Barons")
+    create_entity(tmp_path, schema, "Character", "Ulric")
+
+    async def scenario():
+        async with Client(mcp) as client:
+            return await client.get_prompt("brainstorm", {"type": "Character"})
+
+    result = asyncio.run(scenario())
+    text = result.messages[0].content.text
+    assert "Faction" in text
+
+
+def test_suggest_connections_prompt(tmp_path, monkeypatch):
+    monkeypatch.setenv("OBSIDIAN_VAULT_PATH", str(tmp_path))
+    init_vault(tmp_path)
+    schema = load_schema(tmp_path)
+
+    create_entity(tmp_path, schema, "Character", "Aldric")
+    create_entity(tmp_path, schema, "Faction", "Ravens")
+
+    async def scenario():
+        async with Client(mcp) as client:
+            return await client.get_prompt("suggest_connections", {"ref": "Aldric"})
+
+    result = asyncio.run(scenario())
+    text = result.messages[0].content.text
+    assert "Aldric" in text
+    assert "Ravens" in text
+    assert "member_of" in text
+
+
+def test_consistency_review(tmp_path, monkeypatch):
+    monkeypatch.setenv("OBSIDIAN_VAULT_PATH", str(tmp_path))
+    init_vault(tmp_path)
+    schema = load_schema(tmp_path)
+
+    create_entity(tmp_path, schema, "Character", "Character", {"member_of": ["[[Unfound]]"]})
+
+    async def scenario():
+        async with Client(mcp) as client:
+            return await client.get_prompt("consistency_review", {"scope": None})
+
+    result = asyncio.run(scenario())
+    text = result.messages[0].content.text
+    assert "Unfound" in text
+    assert "dangling_link" in text
