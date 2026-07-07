@@ -1,3 +1,4 @@
+import argparse
 import os
 from dataclasses import asdict
 from pathlib import Path
@@ -8,7 +9,7 @@ from fastmcp import FastMCP
 from innkeeper_core import entities
 from innkeeper_core import validate as validate_core
 from innkeeper_core.index import scan_vault
-from innkeeper_core.vault import load_schema
+from innkeeper_core.vault import init_vault, load_schema
 
 mcp = FastMCP("innkeeper")
 
@@ -250,7 +251,27 @@ def consistency_review(scope: str | None = None) -> str:
     )
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
+    common = argparse.ArgumentParser(add_help=False)
+    common.add_argument("--vault", help="Vault path (overrides OBSIDIAN_VAULT_PATH)")
+
+    parser = argparse.ArgumentParser(prog="innkeeper", parents=[common])
+    sub = parser.add_subparsers(dest="command")
+    sub.add_parser("init", parents=[common], help="Scaffold a new vault")
+
+    args = parser.parse_args(argv)
+
+    if args.vault is not None:
+        os.environ["OBSIDIAN_VAULT_PATH"] = args.vault
+
+    if args.command == "init":
+        try:
+            init_vault(_vault())
+        except FileExistsError:
+            raise SystemExit("Cannot overwrite a vault that already exists.") from None
+        print(f"Initialized vault at {_vault()}")
+        return
+
     mcp.run()
 
 

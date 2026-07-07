@@ -1,5 +1,6 @@
 import asyncio
 
+import pytest
 from fastmcp import Client
 
 from innkeeper.server import mcp
@@ -204,3 +205,18 @@ def test_consistency_review(tmp_path, monkeypatch):
     text = result.messages[0].content.text
     assert "Unfound" in text
     assert "dangling_link" in text
+
+
+def test_init_command_scaffolds_vault(tmp_path):
+    from innkeeper.server import main
+
+    main(["init", "--vault", str(tmp_path)])
+    assert (tmp_path / ".innkeeper" / "schema.yaml").exists()
+
+
+def test_init_command_refuses_existing_vault(tmp_path):
+    from innkeeper.server import main
+
+    main(["init", "--vault", str(tmp_path)])  # first init succeeds
+    with pytest.raises(SystemExit):
+        main(["init", "--vault", str(tmp_path)])  # second must exit, not run the server
