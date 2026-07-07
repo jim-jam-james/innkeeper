@@ -4,24 +4,24 @@ from typing import Any
 
 import yaml
 
-from worldbuild_core.models import Entity
-from worldbuild_core.schema import Schema, build_schema
+from innkeeper_core.models import Entity
+from innkeeper_core.schema import Schema, build_schema
 
 
 def default_schema_text() -> str:
-    return files("worldbuild_core").joinpath("default_schema.yaml").read_text(encoding="utf-8")
+    return files("innkeeper_core").joinpath("default_schema.yaml").read_text(encoding="utf-8")
 
 
 def init_vault(path: Path) -> None:
     schema_text = default_schema_text()
     schema = build_schema(yaml.safe_load(schema_text))
 
-    worldbuild_dir = path / ".worldbuild"
-    schema_file = worldbuild_dir / "schema.yaml"
+    innkeeper_dir = path / ".innkeeper"
+    schema_file = innkeeper_dir / "schema.yaml"
     if schema_file.exists():
         raise FileExistsError(f"Vault already initialized: {schema_file}")
 
-    worldbuild_dir.mkdir(parents=True, exist_ok=True)
+    innkeeper_dir.mkdir(parents=True, exist_ok=True)
     schema_file.write_text(schema_text, encoding="utf-8")
 
     for type_spec in schema.types.values():
@@ -55,5 +55,5 @@ def write_entity(path: Path, entity: Entity) -> None:
 
 
 def load_schema(vault_path: Path) -> Schema:
-    text = (vault_path / ".worldbuild" / "schema.yaml").read_text(encoding="utf-8")
+    text = (vault_path / ".innkeeper" / "schema.yaml").read_text(encoding="utf-8")
     return build_schema(yaml.safe_load(text))

@@ -1,5 +1,5 @@
 [project]
-name = "worldbuild-mcp"
+name = "innkeeper"
 version = "0.1.0"
 description = "A schema-driven Model Context Protocol (MCP) server that turns an Obsidian vault into a queryable, self-validating worldbuilding database for TTRPGs (D&D), game settings, and novels."
 readme = "README.md"
@@ -11,7 +11,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/worldbuild_core", "src/worldbuild_mcp"]
+packages = ["src/innkeeper_core", "src/innkeeper"]
 
 [dependency-groups]
 dev = ["pytest", "ruff", "mypy", "types-PyYAML"]
@@ -28,4 +28,4 @@ strict = true
 files = ["src"]
 
 [project.scripts]
-worldbuild-mcp = "worldbuild_mcp.server:main"
+innkeeper = "innkeeper.server:main"

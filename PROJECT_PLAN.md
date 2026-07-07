@@ -1,4 +1,4 @@
-# Worldbuild MCP — Project Plan
+# Innkeeper — Project Plan
 
 > A schema-driven **Model Context Protocol (MCP) server** that turns an Obsidian vault into a
 > queryable, self-validating worldbuilding database for TTRPGs (D&D), game settings, and novels.
@@ -49,12 +49,12 @@ Each row is a settled decision. The rationale is kept so the repo (and future-yo
 | 13 | **10-tool v1 roster** (see §4). | Lean but complete enough to build & maintain a whole world end-to-end. |
 | 14 | **Tiered strictness, tilted permissive.** Structural impossibilities hard-reject; incompleteness allowed-with-warning. Link to a nonexistent target **auto-creates a `status: stub`**. `type` + `name` are the only truly blocking fields. | Worldbuilding is out-of-order; forward-references become a worklist, not an error. |
 | 15 | **Soft-delete default + explicit purge.** `delete_entity` → `_trash/` (reversible). `purge=true` strips inbound **typed** links + inverses *with a report of every note touched*, leaves inbound **prose** mentions as dangling links for `validate` to flag. | Deletion is the one irreversible op; never silently rewrite human narrative text. |
-| 16 | **In-vault schema**, YAML, hidden: `.worldbuild/schema.yaml`. `init` writes the default. Per-vault ontology. | Vault is self-describing & portable; D&D world and novel can diverge on one install. Index excludes `.worldbuild/` and `_trash/`. |
+| 16 | **In-vault schema**, YAML, hidden: `.innkeeper/schema.yaml`. `init` writes the default. Per-vault ontology. | Vault is self-describing & portable; D&D world and novel can diverge on one install. Index excludes `.innkeeper/` and `_trash/`. |
 | 17 | **`validate` = read-only default + opt-in mechanical `fix=true`.** Severity-grouped report (ERROR/WARN/INFO); each item carries refs + suggested fix; `scope` = vault\|type\|entity. `fix` only does unambiguous repairs (rebuild missing inverses; repoint a stale wikilink when exactly one target matches). | Mechanical repairs automated; semantic repairs surfaced, never guessed. The headline "worldbuilding intelligence" feature. Server **verifies**; LLM **creates**. |
 | 18 | **Graph-aware prompts**, v1 set of 4: `flesh_out_entity`, `suggest_connections`, `consistency_review`, `brainstorm`. Each embeds `schema` + world context. | Host LLM is already great at blank-page invention; prompts earn their keep by injecting *your world's* structure/state. `consistency_review` (semantic) pairs with `validate` (structural). |
 | 19 | **One vault per server instance.** Transport = **stdio**. Vault path via `OBSIDIAN_VAULT_PATH` env var or `--vault` CLI arg. | Idiomatic MCP deployment; total isolation; keeps all 10 tool signatures free of a `vault` param. |
-| 20 | **Source-first → PyPI.** `uvx worldbuild-mcp --vault /path` one-liner; ship a copy-paste host-config snippet. | Develop runnable from source so packaging never blocks; publish as a finishing milestone. Wiring-in is the #1 MCP onboarding cliff. |
-| 21 | **Standalone `worldbuild_core` + thin MCP adapter.** One-way rule: core never imports `mcp`; adapter holds no logic. No CLI in v1. | Ports-and-adapters / hexagonal. Clean tests, strongest design talking point, reuse for Phase 2 — and the gentlest on-ramp (build familiar Python first, learn MCP last). |
+| 20 | **Source-first → PyPI.** `uvx innkeeper --vault /path` one-liner; ship a copy-paste host-config snippet. | Develop runnable from source so packaging never blocks; publish as a finishing milestone. Wiring-in is the #1 MCP onboarding cliff. |
+| 21 | **Standalone `innkeeper_core` + thin MCP adapter.** One-way rule: core never imports `mcp`; adapter holds no logic. No CLI in v1. | Ports-and-adapters / hexagonal. Clean tests, strongest design talking point, reuse for Phase 2 — and the gentlest on-ramp (build familiar Python first, learn MCP last). |
 | 22 | **Unit tests + thin in-memory MCP layer + CI.** pytest with temp-vault fixtures carries coverage; in-memory client proves each tool registers & round-trips; GitHub Actions runs tests + **ruff** + **type-check** (mypy/pyright) over a fully type-hinted core. Ship a tiny **example vault** that doubles as fixtures + demo. | Where coverage belongs is the standalone core; the in-memory layer catches wiring bugs unit tests can't. Coverage gates / property tests deferred. |
 | 23 | **Structured result envelope.** Every tool returns `status` (ok\|warning\|error) + `data` + `messages[]`; mutations include a what-changed summary. Expected outcomes return as readable data; only truly exceptional failures raise. | Backbone of the agentic loop — the agent must read what just happened to act next. One home for stub/touched-notes/fix reports. |
 | 24 | **Seams reserved + documented roadmap; no sim code in v1.** | Clean v1 boundary; roadmap credibly says the architecture already reserves temporal + graph-traversal seams. |
@@ -68,7 +68,7 @@ Each row is a settled decision. The rationale is kept so the repo (and future-yo
 
 ```
 ┌─────────────────┐   MCP (stdio)   ┌──────────────────┐   plain calls   ┌──────────────────┐   files   ┌─────────────┐
-│  Host LLM        │ ◄────────────► │  MCP adapter      │ ◄────────────► │  worldbuild_core  │ ◄──────► │ Obsidian vault│
+│  Host LLM        │ ◄────────────► │  MCP adapter      │ ◄────────────► │  innkeeper_core  │ ◄──────► │ Obsidian vault│
 │ (Claude Desktop) │   tools /       │  (server.py)      │   (no mcp       │  (no mcp imports) │  read/    │  .md + .yaml │
 │  orchestrates    │   resources /   │  thin wrappers    │    imports)     │  schema, index,   │  write    │              │
 │  the workflow    │   prompts       │  + result envelope│                 │  links, validate  │           │              │
@@ -76,16 +76,16 @@ Each row is a settled decision. The rationale is kept so the repo (and future-yo
         the agent             ◄── the new thing you learn LAST ──►        ◄── familiar Python you build FIRST ──►
 ```
 
-**The one-way rule:** `worldbuild_core` never imports `mcp`. The adapter never contains logic.
+**The one-way rule:** `innkeeper_core` never imports `mcp`. The adapter never contains logic.
 
 ### 3.2 Repo layout
 
 ```
-worldbuild-mcp/
+innkeeper/
 ├── src/
-│   ├── worldbuild_core/          # the domain engine — ZERO mcp imports
+│   ├── innkeeper_core/          # the domain engine — ZERO mcp imports
 │   │   ├── __init__.py
-│   │   ├── schema.py             # load/validate .worldbuild/schema.yaml
+│   │   ├── schema.py             # load/validate .innkeeper/schema.yaml
 │   │   ├── vault.py              # init_vault(), paths, atomic write-then-rename
 │   │   ├── index.py              # VaultIndex: scan → path↔uid↔aliases, link resolver
 │   │   ├── entities.py           # create/get/update/rename/delete + uid minting
@@ -93,12 +93,12 @@ worldbuild-mcp/
 │   │   ├── validate.py           # the consistency engine + fix
 │   │   ├── query.py              # query_entities, search
 │   │   └── models.py             # Entity, ValidationReport, Result envelope, etc.
-│   └── worldbuild_mcp/           # the thin MCP adapter
+│   └── innkeeper/           # the thin MCP adapter
 │       ├── __init__.py
 │       └── server.py             # @mcp.tool / @mcp.resource / @mcp.prompt wrappers
 ├── tests/
 │   ├── conftest.py               # tmp-vault fixtures
-│   ├── test_core_*.py            # unit tests against worldbuild_core
+│   ├── test_core_*.py            # unit tests against innkeeper_core
 │   └── test_mcp_roundtrip.py     # in-memory FastMCP client: registration + round-trip
 ├── examples/
 │   └── sample_vault/             # tiny demo world (doubles as test fixtures)
@@ -111,7 +111,7 @@ worldbuild-mcp/
 
 ### 3.3 Schema file — north-star shape
 
-`.worldbuild/schema.yaml` (illustrative; the real default ships the core-6):
+`.innkeeper/schema.yaml` (illustrative; the real default ships the core-6):
 
 ```yaml
 version: 1
@@ -186,7 +186,7 @@ Each phase ends at a real, testable milestone. Write tests *as you go*, not afte
 ### Phase 1 — Schema & vault bootstrap (core)
 - [x] Define the `schema.yaml` format (types, folders, required/optional fields, relationship specs with `target`/`cardinality`/`inverse`).
 - [x] `schema.py`: load + **validate the schema itself** (catch malformed ontologies early).
-- [x] `vault.py`: `init_vault(path)` writes the default core-6 schema into `.worldbuild/schema.yaml` and creates the folder skeleton.
+- [x] `vault.py`: `init_vault(path)` writes the default core-6 schema into `.innkeeper/schema.yaml` and creates the folder skeleton.
 - [x] Tests: schema loads, defaults are written, a malformed schema is rejected.
 - [x] **Done when:** `init_vault(tmp)` produces a valid, self-describing vault.
 
@@ -194,7 +194,7 @@ Each phase ends at a real, testable milestone. Write tests *as you go*, not afte
 - [x] `models.py`: `Entity` (frontmatter + body), the `Result` envelope, `ValidationReport`.
 - [x] Readable `uid` minting (e.g. `char_aldric_a1b2`).
 - [x] Markdown read/write: frontmatter parse/serialize, **atomic write-then-rename**.
-- [x] `index.py`: `VaultIndex` (scan-on-demand) builds `path ↔ uid ↔ aliases`; excludes `.worldbuild/` and `_trash/`.
+- [x] `index.py`: `VaultIndex` (scan-on-demand) builds `path ↔ uid ↔ aliases`; excludes `.innkeeper/` and `_trash/`.
 - [x] Link resolver: resolve a `ref` by uid, title, or alias; report unresolved.
 - [x] Tests with temp vaults: round-trip a note, resolve by all three ref kinds, detect a broken link.
 - [x] **Done when:** you can scan a vault and resolve links reliably after a rename.
@@ -220,7 +220,7 @@ Each phase ends at a real, testable milestone. Write tests *as you go*, not afte
 - [x] `validate(fix=true)`: rebuild missing inverses; repoint a stale wikilink when exactly one target matches. Never guess semantics.
 - [x] `query_entities` (type/field/tag filters); `search` (full-text).
 - [x] Tests covering each severity and each mechanical fix.
-- [x] **Done when:** `worldbuild_core` can build, query, and self-heal a whole world with **no MCP at all**. *(Tag a `v0.1-core` git tag here.)*
+- [x] **Done when:** `innkeeper_core` can build, query, and self-heal a whole world with **no MCP at all**. *(Tag a `v0.1-core` git tag here.)*
 
 ### Phase 6 — MCP adapter (learn this layer now, in isolation)
 - [ ] `server.py`: create the FastMCP server; read vault path from `OBSIDIAN_VAULT_PATH` / `--vault`.
@@ -235,7 +235,7 @@ Each phase ends at a real, testable milestone. Write tests *as you go*, not afte
 - [x] **Done when:** the host can do graph-aware generation that respects existing structure.
 
 ### Phase 8 — Packaging, docs, polish  ← ship
-- [ ] Build & publish to PyPI; verify `uvx worldbuild-mcp --vault /path`.
+- [ ] Build & publish to PyPI; verify `uvx innkeeper --vault /path`.
 - [ ] README: hook → **GIF/graph visual** → quickstart + **copy-paste host-config snippet** → concepts (ontology, two-tier links, validate) → **architecture diagram** (ports & adapters) → tool/resource/prompt reference → roadmap.
 - [ ] Polish `examples/sample_vault/` as both demo and fixtures.
 - [ ] Final CI green + badge. *(Tag `v1.0.0`.)*
@@ -251,7 +251,7 @@ Each phase ends at a real, testable milestone. Write tests *as you go*, not afte
 
 ## 6. Definition of Done (v1)
 
-- [ ] `worldbuild_core` is standalone, fully type-hinted, and tested (no `mcp` import anywhere in it).
+- [ ] `innkeeper_core` is standalone, fully type-hinted, and tested (no `mcp` import anywhere in it).
 - [ ] All 10 tools + 3 resources + 4 prompts work through the MCP adapter.
 - [ ] CI is green: pytest + ruff + type-check.
 - [ ] Published on PyPI; README leads with a working `uvx` one-liner and a host-config snippet.

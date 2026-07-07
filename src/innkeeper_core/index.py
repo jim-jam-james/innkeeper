@@ -1,8 +1,8 @@
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from worldbuild_core.models import Entity
-from worldbuild_core.vault import read_entity
+from innkeeper_core.models import Entity
+from innkeeper_core.vault import read_entity
 
 
 @dataclass
@@ -23,7 +23,7 @@ def scan_vault(vault_path: Path) -> VaultIndex:
     index = VaultIndex()
     for md_path in vault_path.rglob("*.md"):
         rel_parts = md_path.relative_to(vault_path).parts
-        if ".worldbuild" in rel_parts or "_trash" in rel_parts:
+        if ".innkeeper" in rel_parts or "_trash" in rel_parts:
             continue
         entity = read_entity(md_path)
 

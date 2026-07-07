@@ -1,7 +1,7 @@
 import pytest
 
-from worldbuild_core.entities import EntityError, create_entity
-from worldbuild_core.vault import init_vault, load_schema, read_entity
+from innkeeper_core.entities import EntityError, create_entity
+from innkeeper_core.vault import init_vault, load_schema, read_entity
 
 
 def test_create_entity(tmp_path):

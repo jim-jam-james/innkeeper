@@ -1,6 +1,6 @@
 import pytest
 
-from worldbuild_core.entities import (
+from innkeeper_core.entities import (
     EntityError,
     create_entity,
     delete_entity,
@@ -14,9 +14,9 @@ from worldbuild_core.entities import (
     unlink,
     update_entity,
 )
-from worldbuild_core.index import scan_vault
-from worldbuild_core.models import Entity
-from worldbuild_core.vault import (
+from innkeeper_core.index import scan_vault
+from innkeeper_core.models import Entity
+from innkeeper_core.vault import (
     init_vault,
     load_schema,
     parse_entity,

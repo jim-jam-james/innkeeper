@@ -2,9 +2,9 @@ import asyncio
 
 from fastmcp import Client
 
-from worldbuild_core.entities import create_entity
-from worldbuild_core.vault import init_vault, load_schema
-from worldbuild_mcp.server import mcp
+from innkeeper.server import mcp
+from innkeeper_core.entities import create_entity
+from innkeeper_core.vault import init_vault, load_schema
 
 
 def test_create_entity_tool_roundtrip(tmp_path, monkeypatch):
@@ -63,9 +63,9 @@ def test_all_tools_and_resources_registered(tmp_path, monkeypatch):
         "validate",
     } <= tools
     assert {
-        "worldbuild://schema",
-        "worldbuild://types",
-        "worldbuild://summary",
+        "innkeeper://schema",
+        "innkeeper://types",
+        "innkeeper://summary",
     } <= resources
 
 

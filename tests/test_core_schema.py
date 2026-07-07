@@ -1,6 +1,6 @@
 import pytest
 
-from worldbuild_core.schema import SchemaError, build_schema
+from innkeeper_core.schema import SchemaError, build_schema
 
 
 def test_build_minimal_schema():

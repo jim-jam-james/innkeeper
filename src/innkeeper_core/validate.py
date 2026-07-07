@@ -3,10 +3,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-from worldbuild_core.entities import _add_link, _rewrite_links, parse_wikilinks
-from worldbuild_core.index import scan_vault
-from worldbuild_core.schema import Schema
-from worldbuild_core.vault import write_entity
+from innkeeper_core.entities import _add_link, _rewrite_links, parse_wikilinks
+from innkeeper_core.index import scan_vault
+from innkeeper_core.schema import Schema
+from innkeeper_core.vault import write_entity
 
 
 @dataclass

@@ -1,7 +1,7 @@
-from worldbuild_core.entities import mint_uid
-from worldbuild_core.index import scan_vault
-from worldbuild_core.models import Entity
-from worldbuild_core.vault import init_vault, write_entity
+from innkeeper_core.entities import mint_uid
+from innkeeper_core.index import scan_vault
+from innkeeper_core.models import Entity
+from innkeeper_core.vault import init_vault, write_entity
 
 
 def test_vault_index(tmp_path):

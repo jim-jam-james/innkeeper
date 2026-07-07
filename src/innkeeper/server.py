@@ -5,10 +5,10 @@ from typing import Any
 
 from fastmcp import FastMCP
 
-from worldbuild_core import entities
-from worldbuild_core import validate as validate_core
-from worldbuild_core.index import scan_vault
-from worldbuild_core.vault import load_schema
+from innkeeper_core import entities
+from innkeeper_core import validate as validate_core
+from innkeeper_core.index import scan_vault
+from innkeeper_core.vault import load_schema
 
 mcp = FastMCP("innkeeper")
 
@@ -137,19 +137,19 @@ def validate(fix: bool = False, scope: str | None = None) -> dict[str, Any]:
     return {"ok": True, "issues": [asdict(i) for i in issues]}
 
 
-@mcp.resource("worldbuild://schema")
+@mcp.resource("innkeeper://schema")
 def schema_resource() -> str:
     """The active vault schema as YAML: types, fields, relationships"""
-    return (_vault() / ".worldbuild" / "schema.yaml").read_text(encoding="utf-8")
+    return (_vault() / ".innkeeper" / "schema.yaml").read_text(encoding="utf-8")
 
 
-@mcp.resource("worldbuild://types")
+@mcp.resource("innkeeper://types")
 def list_types() -> list[str]:
     """All entity type names defined by the schema."""
     return sorted(load_schema(_vault()).types.keys())
 
 
-@mcp.resource("worldbuild://summary")
+@mcp.resource("innkeeper://summary")
 def world_summary() -> dict[str, Any]:
     """A count of entities in the vault, total and broken down by type."""
     index = scan_vault(_vault())
@@ -178,7 +178,7 @@ def flesh_out_entity(ref: str) -> str:
         f"Current frontmatter: {entity.frontmatter}\n"
         f"Current body: {entity.body or '(empty)'}\n\n"
         f"Available typed relationships for a {entity.type}: {rels}\n\n"
-        "Write an evocative body associated with the entity type, and use the worldbuild "
+        "Write an evocative body associated with the entity type, and use the Innkeeper "
         "tools to add fitting frontmatter fields and typed relationships. Only use "
         "relationships from the list above and respect the existing schema and world."
     )

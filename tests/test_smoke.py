@@ -1,7 +1,7 @@
-import worldbuild_core
-import worldbuild_mcp
+import innkeeper
+import innkeeper_core
 
 
 def test_packages_import():
-    assert worldbuild_core.__doc__
-    assert worldbuild_mcp.__doc__
+    assert innkeeper_core.__doc__
+    assert innkeeper.__doc__

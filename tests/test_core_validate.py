@@ -1,6 +1,6 @@
-from worldbuild_core.entities import create_entity, link
-from worldbuild_core.validate import validate
-from worldbuild_core.vault import build_schema, init_vault, load_schema, read_entity
+from innkeeper_core.entities import create_entity, link
+from innkeeper_core.validate import validate
+from innkeeper_core.vault import build_schema, init_vault, load_schema, read_entity
 
 
 def test_validate_clean_vault_no_error(tmp_path):

@@ -3,10 +3,10 @@ import secrets
 from pathlib import Path
 from typing import Any
 
-from worldbuild_core.index import VaultIndex, scan_vault
-from worldbuild_core.models import Entity, EntityView
-from worldbuild_core.schema import Schema
-from worldbuild_core.vault import write_entity
+from innkeeper_core.index import VaultIndex, scan_vault
+from innkeeper_core.models import Entity, EntityView
+from innkeeper_core.schema import Schema
+from innkeeper_core.vault import write_entity
 
 
 class EntityError(Exception):
