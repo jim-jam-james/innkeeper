@@ -1,0 +1,44 @@
+version: 1
+types:
+  Character:
+    folder: Characters
+    fields:
+      optional: [aliases, status, summary, species, class, alignment]
+    relationships:
+      member_of: {target: Faction, cardinality: many, inverse: members}
+      located_in: {target: Location, cardinality: one, inverse: occupants}
+      participant_in: {target: Event, cardinality: many, inverse: participants}
+  Faction:
+    folder: Factions
+    fields:
+      optional: [aliases, status, summary, alignment]
+    relationships:
+      located_in: {target: Location, cardinality: many, inverse: factions}
+      participant_in: {target: Event, cardinality: many, inverse: faction_participants}
+  Location:
+    folder: Locations
+    hierarchical: true
+    fields:
+      optional: [summary, biome, population, governance]
+    relationships:
+      located_in: {target: Location, cardinality: one, inverse: contains}
+  Event:
+    folder: Events
+    hierarchical: true
+    fields:
+      optional: [date, valid_from, valid_to, summary]
+    relationships:
+      located_in: {target: Location, cardinality: many, inverse: events}
+      events: {target: Event, cardinality: one, inverse: sub_events}
+  Item:
+    folder: Items
+    fields:
+      optional: [summary, item_type]
+    relationships:
+      equipped_by: {target: Character, cardinality: one, inverse: items}
+      located_in: {target: Location, cardinality: one, inverse: items}
+      associated_with: {target: Event, cardinality: many, inverse: items}
+  Lore:
+    folder: Lore
+    fields:
+      optional: [summary, lore_type]      
