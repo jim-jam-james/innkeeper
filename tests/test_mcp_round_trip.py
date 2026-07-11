@@ -233,6 +233,84 @@ def test_create_fresh_reports_created_true(tmp_path, monkeypatch):
     assert result.data["created"] is True
 
 
+def test_create_entities_bulk_happy_path(tmp_path, monkeypatch):
+    monkeypatch.setenv("OBSIDIAN_VAULT_PATH", str(tmp_path))
+    init_vault(tmp_path)
+
+    items = [
+        {"type": "Character", "name": "Aldric"},
+        {"type": "Faction", "name": "Ravens"},
+        {"type": "Location", "name": "Thornwick"},
+    ]
+
+    async def scenario():
+        async with Client(mcp) as client:
+            return await client.call_tool("create_entities", {"entities_in": items})
+
+    result = asyncio.run(scenario())
+    assert result.data["ok"] is True
+    assert result.data["created_count"] == 3
+    assert result.data["total"] == 3
+    assert all(r["ok"] and r["created"] for r in result.data["results"])
+    # All three were actually written to disk, not just reported.
+    assert (tmp_path / "Characters" / "Aldric.md").exists()
+    assert (tmp_path / "Factions" / "Ravens.md").exists()
+    assert (tmp_path / "Locations" / "Thornwick.md").exists()
+
+
+def test_create_entities_partial_failure_is_isolated(tmp_path, monkeypatch):
+    monkeypatch.setenv("OBSIDIAN_VAULT_PATH", str(tmp_path))
+    init_vault(tmp_path)
+    schema = load_schema(tmp_path)
+    existing = create_entity(tmp_path, schema, "Character", "Aldric")  # pre-exists -> dup
+
+    items = [
+        {"type": "Character", "name": "Aldric"},  # duplicate, no flag -> fails
+        {"type": "Faction", "name": "Ravens"},  # valid -> should still land
+    ]
+
+    async def scenario():
+        async with Client(mcp) as client:
+            return await client.call_tool("create_entities", {"entities_in": items})
+
+    result = asyncio.run(scenario())
+    assert result.data["ok"] is True  # the batch ran
+    by_name = {r["name"]: r for r in result.data["results"]}
+    assert by_name["Aldric"]["ok"] is False
+    assert by_name["Aldric"]["uid"] == existing.uid  # dup surfaces the existing uid
+    assert by_name["Ravens"]["ok"] is True  # one bad item didn't sink the rest
+    assert (tmp_path / "Factions" / "Ravens.md").exists()
+
+
+def test_create_entities_idempotent_retry(tmp_path, monkeypatch):
+    monkeypatch.setenv("OBSIDIAN_VAULT_PATH", str(tmp_path))
+    init_vault(tmp_path)
+
+    items = [
+        {"type": "Character", "name": "Aldric"},
+        {"type": "Faction", "name": "Ravens"},
+    ]
+
+    async def scenario():
+        async with Client(mcp) as client:
+            first = await client.call_tool(
+                "create_entities", {"entities_in": items, "if_not_exists": True}
+            )
+            second = await client.call_tool(
+                "create_entities", {"entities_in": items, "if_not_exists": True}
+            )
+            return first, second
+
+    first, second = asyncio.run(scenario())
+    assert all(r["created"] for r in first.data["results"])  # first run wrote them
+    assert all(not r["created"] for r in second.data["results"])  # retry created nothing
+    assert all(r["ok"] for r in second.data["results"])  # and reported no errors
+    # uids are stable across the retry
+    first_uids = {r["name"]: r["uid"] for r in first.data["results"]}
+    second_uids = {r["name"]: r["uid"] for r in second.data["results"]}
+    assert first_uids == second_uids
+
+
 def test_get_schema_loads_schema(tmp_path, monkeypatch):
     monkeypatch.setenv("OBSIDIAN_VAULT_PATH", str(tmp_path))
     init_vault(tmp_path)

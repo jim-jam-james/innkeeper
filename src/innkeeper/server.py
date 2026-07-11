@@ -49,6 +49,40 @@ def create_entity(
 
 
 @mcp.tool
+def create_entities(
+    entities_in: list[dict[str, Any]],
+    if_not_exists: bool = False,
+) -> dict[str, Any]:
+    """Create many entities in one call. Each item: {type, name, fields?, body?}.
+    Best-effort: each item succeeds or fails independently; see per-item results."""
+    vault = _vault()
+    schema = load_schema(vault)
+    results = []
+
+    for item in entities_in:
+        try:
+            entity = entities.create_entity(
+                vault, schema, item["type"], item["name"], item.get("fields"), item.get("body", "")
+            )
+            results.append({"name": item["name"], "ok": True, "created": True, "uid": entity.uid})
+        except entities.EntityExistsError as exc:
+            if if_not_exists:
+                results.append(
+                    {"name": item["name"], "ok": True, "created": False, "uid": exc.entity.uid}
+                )
+            else:
+                results.append(
+                    {"name": item["name"], "ok": False, "error": str(exc), "uid": exc.entity.uid}
+                )
+        except entities.EntityError as exc:
+            results.append({"name": item["name"], "ok": False, "error": str(exc)})
+
+        created = sum(1 for r in results if r["ok"])
+
+    return {"ok": True, "created_count": created, "total": len(results), "results": results}
+
+
+@mcp.tool
 def get_entity(ref: str, expand: bool = False) -> dict[str, Any]:
     """Get information about an entity (uid, type, name, frontmatter, body) and returns it."""
     vault = _vault()
