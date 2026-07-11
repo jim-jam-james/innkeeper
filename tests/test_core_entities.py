@@ -487,3 +487,21 @@ def test_search_no_match_returns_empty(tmp_path):
     create_entity(tmp_path, schema, "Character", "Character2")
 
     assert len(search(tmp_path, "dragon")) == 0
+
+
+def test_scan_skips_non_entity_markdown(tmp_path):
+    init_vault(tmp_path)
+    schema = load_schema(tmp_path)
+    create_entity(tmp_path, schema, "Character", "Aldric")
+
+    # A perfectly ordinary note that uses '---' as a horizontal rule. It has no
+    # Innkeeper frontmatter, so parsing it as an entity fails -- but that must not
+    # take down the whole scan.
+    (tmp_path / "loose_note.md").write_text(
+        "Some thoughts.\n\n---\n\nA later section.\n", encoding="utf-8"
+    )
+
+    index = scan_vault(tmp_path)  # must not raise
+
+    names = {e.name for e in index.entities.values()}
+    assert names == {"Aldric"}  # real entity indexed, stray note ignored

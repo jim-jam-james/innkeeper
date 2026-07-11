@@ -23,9 +23,13 @@ def scan_vault(vault_path: Path) -> VaultIndex:
     index = VaultIndex()
     for md_path in vault_path.rglob("*.md"):
         rel_parts = md_path.relative_to(vault_path).parts
-        if ".innkeeper" in rel_parts or "_trash" in rel_parts:
+        if ".innkeeper" in rel_parts or "_trash" in rel_parts or ".obsidian" in rel_parts:
             continue
-        entity = read_entity(md_path)
+
+        try:
+            entity = read_entity(md_path)
+        except Exception:
+            continue
 
         index.entities[entity.uid] = entity
         index.path_by_uid[entity.uid] = md_path
