@@ -465,7 +465,7 @@ def test_search_matches_body_case_insensitive(tmp_path):
     assert len(search(tmp_path, "dragon")) == 1
 
 
-def test_Search_no_match_returns_empty(tmp_path):
+def test_search_no_match_returns_empty(tmp_path):
     init_vault(tmp_path)
     schema = load_schema(tmp_path)
 

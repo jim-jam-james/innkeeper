@@ -89,7 +89,10 @@ def delete_entity(ref: str, purge: bool = False) -> dict[str, Any]:
 
 @mcp.tool
 def link(source_ref: str, rel_name: str, target_ref: str) -> dict[str, Any]:
-    """Create a typed relationship (writes the inverse; auto-stubs a missing target)."""
+    """Create a typed relationship (writes the inverse; auto-stubs a missing target).
+    'rel_name' must be a relationship type defined in the vault schema.
+    Call get_schema to list valid types.
+    """
     vault = _vault()
     schema = load_schema(vault)
     try:
@@ -136,6 +139,12 @@ def validate(fix: bool = False, scope: str | None = None) -> dict[str, Any]:
     schema = load_schema(vault)
     issues = validate_core.validate(vault, schema, fix, scope)
     return {"ok": True, "issues": [asdict(i) for i in issues]}
+
+
+@mcp.tool
+def get_schema() -> str:
+    """Retrieve the active vault schema as YAML: types, fields, relationships"""
+    return (_vault() / ".innkeeper" / "schema.yaml").read_text(encoding="utf-8")
 
 
 @mcp.resource("innkeeper://schema")

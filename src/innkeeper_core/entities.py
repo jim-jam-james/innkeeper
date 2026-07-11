@@ -255,7 +255,10 @@ def link(vault_path: Path, schema: Schema, source_ref: str, rel_name: str, targe
     rel = source_spec.relationships.get(rel_name)
 
     if rel is None:
-        raise EntityError(f"'{source_ref}' has no relationship '{rel_name}'")
+        raise EntityError(
+            f"'{source_ref}' has no relationship '{rel_name}'. {source.type} has "
+            f"the following relationships: {list(source_spec.relationships.keys())}"
+        )
 
     target = index.resolve(target_ref)
 

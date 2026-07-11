@@ -135,6 +135,18 @@ def test_query_tool_filters_by_type(tmp_path, monkeypatch):
     assert names == {"A"}
 
 
+def test_get_schema_loads_schema(tmp_path, monkeypatch):
+    monkeypatch.setenv("OBSIDIAN_VAULT_PATH", str(tmp_path))
+    init_vault(tmp_path)
+
+    async def scenario():
+        async with Client(mcp) as client:
+            return await client.call_tool("get_schema")
+
+    result = asyncio.run(scenario())
+    assert result.data == (tmp_path / ".innkeeper" / "schema.yaml").read_text(encoding="utf-8")
+
+
 def test_flesh_out_entity_prompt(tmp_path, monkeypatch):
     monkeypatch.setenv("OBSIDIAN_VAULT_PATH", str(tmp_path))
     init_vault(tmp_path)
