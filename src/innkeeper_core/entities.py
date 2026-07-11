@@ -6,11 +6,19 @@ from typing import Any
 from innkeeper_core.index import VaultIndex, scan_vault
 from innkeeper_core.models import Entity, EntityView
 from innkeeper_core.schema import Schema
-from innkeeper_core.vault import write_entity
+from innkeeper_core.vault import read_entity, write_entity
 
 
 class EntityError(Exception):
     pass
+
+
+class EntityExistsError(EntityError):
+    def __init__(self, entity: Entity):
+        self.entity = entity
+        super().__init__(
+            f"Entity '{entity.name}' already exists (uid: {entity.uid}). Cannot overwrite."
+        )
 
 
 def slugify(text: str) -> str:
@@ -37,7 +45,7 @@ def create_entity(
     note_path = vault_path / type_spec.folder / f"{name}.md"
 
     if note_path.exists():
-        raise EntityError("Entity already exists. Cannot overwrite.")
+        raise EntityExistsError(read_entity(note_path))
 
     uid = mint_uid(type, name)
     entity = Entity(uid=uid, type=type, name=name, frontmatter=dict(fields or {}), body=body)

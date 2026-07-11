@@ -2,6 +2,7 @@ import pytest
 
 from innkeeper_core.entities import (
     EntityError,
+    EntityExistsError,
     create_entity,
     delete_entity,
     get_entity,
@@ -68,6 +69,19 @@ def test_entity_round_trip():
     assert entity.name == parsed.name
     assert entity.frontmatter == parsed.frontmatter
     assert entity.body == parsed.body
+
+
+def test_create_duplicate_raises_entity_exists(tmp_path):
+    init_vault(tmp_path)
+    schema = load_schema(tmp_path)
+
+    original = create_entity(tmp_path, schema, "Character", "Aldric")
+
+    with pytest.raises(EntityExistsError) as exc:
+        create_entity(tmp_path, schema, "Character", "Aldric")
+
+    # The error carries the existing entity, so an interrupted retry can recover its uid.
+    assert exc.value.entity.uid == original.uid
 
 
 def test_get_entity_resolves_relationships(tmp_path):

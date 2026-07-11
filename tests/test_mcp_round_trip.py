@@ -186,6 +186,53 @@ def test_get_entity_thins_neighbors_by_default_and_expands(tmp_path, monkeypatch
     assert expanded_guild["body"] == "The guild's storied history."
 
 
+def test_create_duplicate_without_flag_reports_uid(tmp_path, monkeypatch):
+    monkeypatch.setenv("OBSIDIAN_VAULT_PATH", str(tmp_path))
+    init_vault(tmp_path)
+    schema = load_schema(tmp_path)
+    original = create_entity(tmp_path, schema, "Character", "Aldric")
+
+    async def scenario():
+        async with Client(mcp) as client:
+            return await client.call_tool("create_entity", {"type": "Character", "name": "Aldric"})
+
+    result = asyncio.run(scenario())
+    assert result.data["ok"] is False
+    assert result.data["uid"] == original.uid  # agent can confirm the earlier write landed
+
+
+def test_create_if_not_exists_returns_existing(tmp_path, monkeypatch):
+    monkeypatch.setenv("OBSIDIAN_VAULT_PATH", str(tmp_path))
+    init_vault(tmp_path)
+    schema = load_schema(tmp_path)
+    original = create_entity(tmp_path, schema, "Character", "Aldric")
+
+    async def scenario():
+        async with Client(mcp) as client:
+            return await client.call_tool(
+                "create_entity",
+                {"type": "Character", "name": "Aldric", "if_not_exists": True},
+            )
+
+    result = asyncio.run(scenario())
+    assert result.data["ok"] is True
+    assert result.data["created"] is False  # found the existing one, didn't write
+    assert result.data["entity"]["uid"] == original.uid
+
+
+def test_create_fresh_reports_created_true(tmp_path, monkeypatch):
+    monkeypatch.setenv("OBSIDIAN_VAULT_PATH", str(tmp_path))
+    init_vault(tmp_path)
+
+    async def scenario():
+        async with Client(mcp) as client:
+            return await client.call_tool("create_entity", {"type": "Character", "name": "Aldric"})
+
+    result = asyncio.run(scenario())
+    assert result.data["ok"] is True
+    assert result.data["created"] is True
+
+
 def test_get_schema_loads_schema(tmp_path, monkeypatch):
     monkeypatch.setenv("OBSIDIAN_VAULT_PATH", str(tmp_path))
     init_vault(tmp_path)

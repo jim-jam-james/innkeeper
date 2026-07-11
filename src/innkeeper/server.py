@@ -29,13 +29,23 @@ def _summary(entity: Entity) -> dict[str, Any]:
 
 @mcp.tool
 def create_entity(
-    type: str, name: str, fields: dict[str, Any] | None = None, body: str = ""
+    type: str,
+    name: str,
+    fields: dict[str, Any] | None = None,
+    body: str = "",
+    if_not_exists: bool = False,
 ) -> dict[str, Any]:
     """Create a new entity (Character, Faction, Location, ...) and return it."""
     vault = _vault()
     schema = load_schema(vault)
-    entity = entities.create_entity(vault, schema, type, name, fields, body)
-    return {"ok": True, "entity": asdict(entity)}
+
+    try:
+        entity = entities.create_entity(vault, schema, type, name, fields, body)
+        return {"ok": True, "created": True, "entity": asdict(entity)}
+    except entities.EntityExistsError as exc:
+        if if_not_exists:
+            return {"ok": True, "created": False, "entity": asdict(exc.entity)}
+        return {"ok": False, "error": str(exc), "uid": exc.entity.uid}
 
 
 @mcp.tool
