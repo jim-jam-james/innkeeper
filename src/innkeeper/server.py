@@ -9,6 +9,7 @@ from fastmcp import FastMCP
 from innkeeper_core import entities
 from innkeeper_core import validate as validate_core
 from innkeeper_core.index import scan_vault
+from innkeeper_core.models import Entity
 from innkeeper_core.vault import init_vault, load_schema
 
 mcp = FastMCP("innkeeper")
@@ -20,6 +21,10 @@ def _vault() -> Path:
 
 def _err(exc: Exception) -> dict[str, Any]:
     return {"ok": False, "error": str(exc)}
+
+
+def _summary(entity: Entity) -> dict[str, Any]:
+    return {k: v for k, v in entity.__dict__.items() if k != "body"}
 
 
 @mcp.tool
@@ -34,7 +39,7 @@ def create_entity(
 
 
 @mcp.tool
-def get_entity(ref: str) -> dict[str, Any]:
+def get_entity(ref: str, expand: bool = False) -> dict[str, Any]:
     """Get information about an entity (uid, type, name, frontmatter, body) and returns it."""
     vault = _vault()
     schema = load_schema(vault)
@@ -43,7 +48,19 @@ def get_entity(ref: str) -> dict[str, Any]:
     if entity_view is None:
         return {"ok": False, "error": f"No entity found for '{ref}'"}
 
-    return {"ok": True, "entity_view": asdict(entity_view)}
+    def project(e: Entity) -> dict[str, Any]:
+        return asdict(e) if expand else _summary(e)
+
+    return {
+        "ok": True,
+        "entity_view": {
+            "entity": asdict(entity_view.entity),
+            "relationships": {
+                k: [project(e) for e in v] for k, v in entity_view.relationships.items()
+            },
+            "backlinks": [project(e) for e in entity_view.backlinks],
+        },
+    }
 
 
 @mcp.tool
@@ -119,17 +136,18 @@ def query_entities(
     type: str | None = None,
     fields: dict[str, Any] | None = None,
     tag: str | None = None,
+    expand: bool = False,
 ) -> dict[str, Any]:
     """Query entities by type, exact frontmatter field values, and/or tag."""
     results = entities.query_entities(_vault(), type, fields, tag)
-    return {"ok": True, "entities": [asdict(e) for e in results]}
+    return {"ok": True, "entities": [asdict(e) if expand else _summary(e) for e in results]}
 
 
 @mcp.tool
-def search(query: str) -> dict[str, Any]:
+def search(query: str, expand: bool = False) -> dict[str, Any]:
     """Full-text (case-insensitive) search over entity names and bodies."""
     results = entities.search(_vault(), query)
-    return {"ok": True, "entities": [asdict(e) for e in results]}
+    return {"ok": True, "entities": [asdict(e) if expand else _summary(e) for e in results]}
 
 
 @mcp.tool

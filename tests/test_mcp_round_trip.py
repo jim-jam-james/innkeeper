@@ -135,6 +135,57 @@ def test_query_tool_filters_by_type(tmp_path, monkeypatch):
     assert names == {"A"}
 
 
+def test_query_omits_body_by_default_and_expands(tmp_path, monkeypatch):
+    monkeypatch.setenv("OBSIDIAN_VAULT_PATH", str(tmp_path))
+    init_vault(tmp_path)
+    schema = load_schema(tmp_path)
+    create_entity(tmp_path, schema, "Character", "Aldric", body="A long and costly body.")
+
+    async def scenario():
+        async with Client(mcp) as client:
+            summary = await client.call_tool("query_entities", {"type": "Character"})
+            expanded = await client.call_tool(
+                "query_entities", {"type": "Character", "expand": True}
+            )
+            return summary, expanded
+
+    summary, expanded = asyncio.run(scenario())
+
+    summary_entity = summary.data["entities"][0]
+    assert "body" not in summary_entity  # default trims the expensive field
+    assert summary_entity["name"] == "Aldric"  # cheap fields still present
+
+    expanded_entity = expanded.data["entities"][0]
+    assert expanded_entity["body"] == "A long and costly body."  # expand restores it
+
+
+def test_get_entity_thins_neighbors_by_default_and_expands(tmp_path, monkeypatch):
+    monkeypatch.setenv("OBSIDIAN_VAULT_PATH", str(tmp_path))
+    init_vault(tmp_path)
+    schema = load_schema(tmp_path)
+    create_entity(tmp_path, schema, "Character", "Member")
+    create_entity(tmp_path, schema, "Faction", "Guild", body="The guild's storied history.")
+
+    async def scenario():
+        async with Client(mcp) as client:
+            await client.call_tool(
+                "link", {"source_ref": "Member", "rel_name": "member_of", "target_ref": "Guild"}
+            )
+            summary = await client.call_tool("get_entity", {"ref": "Member"})
+            expanded = await client.call_tool("get_entity", {"ref": "Member", "expand": True})
+            return summary, expanded
+
+    summary, expanded = asyncio.run(scenario())
+
+    # Focal entity is always full; its neighbors are thinned by default.
+    summary_guild = summary.data["entity_view"]["relationships"]["member_of"][0]
+    assert summary_guild["name"] == "Guild"
+    assert "body" not in summary_guild
+
+    expanded_guild = expanded.data["entity_view"]["relationships"]["member_of"][0]
+    assert expanded_guild["body"] == "The guild's storied history."
+
+
 def test_get_schema_loads_schema(tmp_path, monkeypatch):
     monkeypatch.setenv("OBSIDIAN_VAULT_PATH", str(tmp_path))
     init_vault(tmp_path)

@@ -166,7 +166,7 @@ def validate(
                     code="orphan",
                     ref=entity.name,
                     message=f"{entity.name} has no typed relationships",
-                    suggestion="Link it to another note, or leave it as standalonel lore",
+                    suggestion="Link it to another note, or leave it as standalone lore",
                 )
             )
     return issues
