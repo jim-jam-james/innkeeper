@@ -103,6 +103,42 @@ def test_validate_flags_orphan(tmp_path):
     assert any(i.code == "orphan" for i in validate(tmp_path, schema))
 
 
+def test_body_backlink_prevents_orphan(tmp_path):
+    init_vault(tmp_path)
+    schema = load_schema(tmp_path)
+
+    # A Lore note has no typed relationships, so it used to always read as an orphan.
+    create_entity(tmp_path, schema, "Lore", "Founding")
+    # A Character references it only in prose, via a body wikilink.
+    create_entity(tmp_path, schema, "Character", "Marta", body="She recalls the [[Founding]].")
+
+    orphans = {i.ref for i in validate(tmp_path, schema) if i.code == "orphan"}
+    assert "Founding" not in orphans  # a body backlink now counts as a connection
+
+
+def test_body_link_out_prevents_source_orphan(tmp_path):
+    init_vault(tmp_path)
+    schema = load_schema(tmp_path)
+
+    create_entity(tmp_path, schema, "Location", "Thornwick")
+    # A Lore note whose only connection is a body link OUT to Thornwick (no typed rels).
+    create_entity(tmp_path, schema, "Lore", "Tale", body="Set long ago in [[Thornwick]].")
+
+    orphans = {i.ref for i in validate(tmp_path, schema) if i.code == "orphan"}
+    assert "Tale" not in orphans  # linking out via the body sets has_outbound
+
+
+def test_truly_disconnected_entity_still_orphan(tmp_path):
+    init_vault(tmp_path)
+    schema = load_schema(tmp_path)
+
+    # No typed relationships and no body links, in or out.
+    create_entity(tmp_path, schema, "Lore", "Lonely")
+
+    orphans = {i.ref for i in validate(tmp_path, schema) if i.code == "orphan"}
+    assert "Lonely" in orphans  # the check still fires for a genuinely isolated note
+
+
 def test_validate_fix_repoints_stale_link(tmp_path):
     init_vault(tmp_path)
     schema = load_schema(tmp_path)

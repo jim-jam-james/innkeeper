@@ -157,6 +157,11 @@ def validate(
                 if target is not None:
                     referenced.add(target.uid)
                     has_outbound.add(entity.uid)
+        for title in parse_wikilinks(entity.body):
+            target = index.resolve(title)
+            if target is not None:
+                referenced.add(target.uid)
+                has_outbound.add(entity.uid)
 
     for entity in targets:
         if entity.uid not in referenced and entity.uid not in has_outbound:
@@ -165,7 +170,7 @@ def validate(
                     severity="INFO",
                     code="orphan",
                     ref=entity.name,
-                    message=f"{entity.name} has no typed relationships",
+                    message=f"{entity.name} isn't linked to or from another note",
                     suggestion="Link it to another note, or leave it as standalone lore",
                 )
             )
