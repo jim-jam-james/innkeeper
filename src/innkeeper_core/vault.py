@@ -57,3 +57,8 @@ def write_entity(path: Path, entity: Entity) -> None:
 def load_schema(vault_path: Path) -> Schema:
     text = (vault_path / ".innkeeper" / "schema.yaml").read_text(encoding="utf-8")
     return build_schema(yaml.safe_load(text))
+
+
+def load_body_template(vault_path: Path, type_name: str) -> str:
+    path = vault_path / ".innkeeper" / "templates" / f"{type_name}.md"
+    return path.read_text(encoding="utf-8") if path.exists() else ""

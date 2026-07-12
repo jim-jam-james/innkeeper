@@ -345,7 +345,7 @@ def test_link_unknown_relationship_raises(tmp_path):
     create_entity(tmp_path, schema, "Character", "Character")
 
     with pytest.raises(EntityError):
-        link(tmp_path, schema, "Character", "leader_of", "Faction")
+        link(tmp_path, schema, "Character", "worships", "Faction")
 
 
 def test_link_wrong_target_type_raises(tmp_path):
@@ -425,7 +425,7 @@ def test_unlink_unknown_relationship_raises(tmp_path):
     create_entity(tmp_path, schema, "Character", "Character")
 
     with pytest.raises(EntityError):
-        link(tmp_path, schema, "Character", "leader_of", "Faction")
+        unlink(tmp_path, schema, "Character", "worships", "Faction")
 
 
 def test_query_by_type(tmp_path):
@@ -505,3 +505,46 @@ def test_scan_skips_non_entity_markdown(tmp_path):
 
     names = {e.name for e in index.entities.values()}
     assert names == {"Aldric"}  # real entity indexed, stray note ignored
+
+
+def write_template(vault_path, type_name, text):
+    templates = vault_path / ".innkeeper" / "templates"
+    templates.mkdir(parents=True, exist_ok=True)
+    (templates / f"{type_name}.md").write_text(text, encoding="utf-8")
+
+
+def test_create_scaffolds_empty_body_from_template(tmp_path):
+    init_vault(tmp_path)
+    schema = load_schema(tmp_path)
+
+    template = "## Description\n\n## History"
+    write_template(tmp_path, "Character", template)
+
+    create_entity(tmp_path, schema, "Character", "Aldric")  # no body given
+
+    note = read_entity(tmp_path / "Characters" / "Aldric.md")
+    assert note.body == template  # the empty body was filled from the type's template
+
+
+def test_explicit_body_wins_over_template(tmp_path):
+    init_vault(tmp_path)
+    schema = load_schema(tmp_path)
+
+    write_template(tmp_path, "Character", "## Description\n\n## History")
+
+    create_entity(tmp_path, schema, "Character", "Aldric", body="Custom prose.")
+
+    note = read_entity(tmp_path / "Characters" / "Aldric.md")
+    assert note.body == "Custom prose."  # caller's prose is respected
+    assert "## Description" not in note.body  # template did not leak in
+
+
+def test_create_without_template_leaves_body_empty(tmp_path):
+    init_vault(tmp_path)
+    schema = load_schema(tmp_path)
+
+    # No template file for this type -- behavior must be unchanged from before the feature.
+    create_entity(tmp_path, schema, "Character", "Aldric")
+
+    note = read_entity(tmp_path / "Characters" / "Aldric.md")
+    assert note.body == ""

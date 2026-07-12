@@ -6,7 +6,7 @@ from typing import Any
 from innkeeper_core.index import VaultIndex, scan_vault
 from innkeeper_core.models import Entity, EntityView
 from innkeeper_core.schema import Schema
-from innkeeper_core.vault import read_entity, write_entity
+from innkeeper_core.vault import load_body_template, read_entity, write_entity
 
 
 class EntityError(Exception):
@@ -48,6 +48,9 @@ def create_entity(
         raise EntityExistsError(read_entity(note_path))
 
     uid = mint_uid(type, name)
+
+    body = body or load_body_template(vault_path, type)
+
     entity = Entity(uid=uid, type=type, name=name, frontmatter=dict(fields or {}), body=body)
 
     note_path.parent.mkdir(parents=True, exist_ok=True)
