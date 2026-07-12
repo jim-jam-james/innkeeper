@@ -548,3 +548,18 @@ def test_create_without_template_leaves_body_empty(tmp_path):
 
     note = read_entity(tmp_path / "Characters" / "Aldric.md")
     assert note.body == ""
+
+
+def test_init_scaffolds_a_template_file_per_type(tmp_path):
+    init_vault(tmp_path)
+    schema = load_schema(tmp_path)
+
+    templates_dir = tmp_path / ".innkeeper" / "templates"
+    assert templates_dir.is_dir()
+
+    # Every type in the schema gets an empty template file, so a user can discover
+    # where body scaffolding goes without having to create the files themselves.
+    for type_name in schema.types:
+        template_file = templates_dir / f"{type_name}.md"
+        assert template_file.exists()
+        assert template_file.read_text(encoding="utf-8") == ""

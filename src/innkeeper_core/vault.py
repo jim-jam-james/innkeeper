@@ -20,12 +20,16 @@ def init_vault(path: Path) -> None:
     schema_file = innkeeper_dir / "schema.yaml"
     if schema_file.exists():
         raise FileExistsError(f"Vault already initialized: {schema_file}")
+    
+    templates_dir = innkeeper_dir / "templates"
 
     innkeeper_dir.mkdir(parents=True, exist_ok=True)
+    templates_dir.mkdir(exist_ok=True)
     schema_file.write_text(schema_text, encoding="utf-8")
 
     for type_spec in schema.types.values():
         (path / type_spec.folder).mkdir(parents=True, exist_ok=True)
+        (templates_dir / f"{type_spec.name}.md").write_text("", encoding="utf-8")
 
 
 def serialize_entity(entity: Entity) -> str:
