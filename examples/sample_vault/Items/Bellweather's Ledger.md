@@ -1,6 +1,6 @@
 ---
 type: Item
-uid: item_bellweather_s_ledger_7b9e
+uid: item_bellweather_s_ledger_6c87
 item_type: book
 summary: A worn book of debts, favours, and rumours.
 equipped_by: '[[Marta Bellweather]]'

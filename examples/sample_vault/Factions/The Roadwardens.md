@@ -1,6 +1,6 @@
 ---
 type: Faction
-uid: faction_the_roadwardens_4ab9
+uid: faction_the_roadwardens_625e
 summary: The volunteer militia that keeps the Salt Road safe.
 located_in:
 - '[[Thornwick]]'

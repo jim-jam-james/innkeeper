@@ -105,6 +105,28 @@ def build() -> None:
         "ale. Everything since has just been expansion.",
     )
 
+    # --- Session (demonstrates a body template) ---
+    # init_vault() scaffolds an empty templates/Session.md. Overwrite it with a real
+    # recap scaffold, then create the Session with no body so it inherits the template.
+    session_template = "## Recap\n\n## Notable NPCs\n\n## Loose Threads\n\n## Rewards & XP\n"
+    (VAULT / ".innkeeper" / "templates" / "Session.md").write_text(
+        session_template, encoding="utf-8"
+    )
+
+    new(
+        "Session",
+        "Session 1 - The Salt Road Fair",
+        {
+            "session_number": 1,
+            "played_on": "2026-01-10",
+            "summary": "The party arrives in Thornwick as the fair opens.",
+        },
+    )
+    link("Session 1 - The Salt Road Fair", "covers", "The Salt Road Fair")
+    link("Session 1 - The Salt Road Fair", "mentions", "Marta Bellweather")
+    link("Session 1 - The Salt Road Fair", "mentions", "Captain Orin Vale")
+    link("Session 1 - The Salt Road Fair", "located_in", "Thornwick")
+
     print(f"Sample vault built at {VAULT}")
 
 

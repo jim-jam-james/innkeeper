@@ -1,6 +1,6 @@
 ---
 type: Location
-uid: location_the_gilded_antler_663c
+uid: location_the_gilded_antler_eb60
 summary: The town's largest inn and de-facto common house.
 located_in: '[[Thornwick]]'
 occupants:

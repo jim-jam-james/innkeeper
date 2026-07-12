@@ -1,6 +1,6 @@
 ---
 type: Lore
-uid: lore_the_founding_of_thornwick_e069
+uid: lore_the_founding_of_thornwick_1caf
 lore_type: history
 ---
 
