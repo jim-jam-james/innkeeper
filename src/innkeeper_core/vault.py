@@ -20,7 +20,7 @@ def init_vault(path: Path) -> None:
     schema_file = innkeeper_dir / "schema.yaml"
     if schema_file.exists():
         raise FileExistsError(f"Vault already initialized: {schema_file}")
-    
+
     templates_dir = innkeeper_dir / "templates"
 
     innkeeper_dir.mkdir(parents=True, exist_ok=True)
