@@ -50,3 +50,14 @@ types:
       optional: [summary, lore_type]
     relationships:
       concerns: {target: Event, cardinality: many, inverse: lore}
+  Session:
+    folder: Sessions
+    hierarchical: true
+    fields:
+      optional: [session_number, played_on, summary, recap, xp_awarded]
+    relationships:
+      follows: {target: Session, cardinality: one, inverse: followed_by}
+      covers: {target: Event, cardinality: many, inverse: sessions}
+      mentions: {target: Character, cardinality: many, inverse: mentioned}
+      located_in: {target: Location, cardinality: many, inverse: sessions}
+      rewards: {target: Item, cardinality: many, inverse: awarded_in} 
