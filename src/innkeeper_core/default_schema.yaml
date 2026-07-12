@@ -3,16 +3,21 @@ types:
   Character:
     folder: Characters
     fields:
-      optional: [aliases, status, summary, species, class, alignment]
+      optional: [aliases, status, role, summary, species, class, alignment]
     relationships:
       member_of: {target: Faction, cardinality: many, inverse: members}
+      leader_of: {target: Faction, cardinality: many, inverse: led_by}
+      connected_to: {target: Character, cardinality: many, inverse: connections}
       located_in: {target: Location, cardinality: one, inverse: occupants}
       participant_in: {target: Event, cardinality: many, inverse: participants}
   Faction:
     folder: Factions
     fields:
-      optional: [aliases, status, summary, alignment]
+      optional: [aliases, status, summary, alignment, goals]
     relationships:
+      part_of: {target: Faction, cardinality: one, inverse: subfactions}
+      allied_with: {target: Faction, cardinality: many, inverse: allies}
+      rival_of: {target: Faction, cardinality: many, inverse: rivals}
       located_in: {target: Location, cardinality: many, inverse: factions}
       participant_in: {target: Event, cardinality: many, inverse: faction_participants}
   Location:
@@ -29,11 +34,12 @@ types:
       optional: [date, valid_from, valid_to, summary]
     relationships:
       located_in: {target: Location, cardinality: many, inverse: events}
-      events: {target: Event, cardinality: one, inverse: sub_events}
+      part_of: {target: Event, cardinality: one, inverse: sub_events}
+      follows: {target: Event, cardinality: one, inverse: followed_by}
   Item:
     folder: Items
     fields:
-      optional: [summary, item_type]
+      optional: [summary, item_type, rarity]
     relationships:
       equipped_by: {target: Character, cardinality: one, inverse: items}
       located_in: {target: Location, cardinality: one, inverse: items}
@@ -41,4 +47,6 @@ types:
   Lore:
     folder: Lore
     fields:
-      optional: [summary, lore_type]      
+      optional: [summary, lore_type]
+    relationships:
+      concerns: {target: Event, cardinality: many, inverse: lore}
